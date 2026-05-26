@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Helper App — תזכורת
 
-## Getting Started
+PWA בעברית למבוגרים: ניהול תרופות, בדיקות (לחץ דם וכו') ואימונים — לעצמם ולבני המשפחה שלהם.
 
-First, run the development server:
+## Stack
+- Next.js 16 (App Router, Turbopack)
+- Supabase (Postgres + Auth + RLS)
+- Web Push (VAPID) + Service Worker
+- TypeScript + Tailwind v4
+
+## Pages
+- `/signup` — בחירת תפקיד (מטופל/בן משפחה) + יצירת חשבון
+- `/login` — כניסה (אימייל + סיסמא; ברירת מחדל לחשבון חדש: `1`)
+- `/today` — מסך הבית: רשימת המשימות של היום עם סימון "בוצע"
+- `/schedules` — ניהול תזכורות (תרופות, בדיקות, אימונים)
+- `/family` — ניהול בני משפחה (מנהל / עורך / צופה)
+- `/invite/[token]` — קישור הזמנה
+- `/settings` — הגדרות + שינוי סיסמא
+
+## API
+**פנימי (משתמש מחובר):**
+- `POST /api/schedules` / `PATCH|DELETE /api/schedules/[id]`
+- `POST /api/occurrences/[id]/mark` — סימון בוצע/דלג/החזרה
+- `POST /api/reminders/push` — תזכר עכשיו (בן משפחה לוחץ)
+- `POST /api/push/subscribe` — רישום מנוי Web Push
+- `POST /api/family/invitations` / `PATCH|DELETE /api/family/members`
+
+**Cron (n8n / pg_cron) — דורש `x-cron-secret`:**
+- `POST /api/internal/cron/dispatch` — שולח push לתזכורות שמועדן הגיע, מסמן missed, מאריך חלון
+
+**External integration — דורש `Authorization: Bearer <api_token>`:**
+- `POST /api/external/push` — `scope: push:send`
+- `POST /api/external/occurrences/mark` — `scope: occurrences:write`
+- `GET /api/external/patients/[id]/status` — `scope: patients:read`
+
+יצירת טוקנים: insert ב-`api_tokens` ידנית עם `token_hash = sha256(<raw>)`.
+
+## Development
 
 ```bash
+cp .env.example .env.local   # מילוי הערכים
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+המיגרציות מנוהלות ע״י Supabase CLI:
+```bash
+npx supabase link --project-ref <ref>
+npx supabase db push
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Push Notifications
+- VAPID keys ב-env.
+- iOS: דורש "הוספה למסך הבית" (iOS 16.4+).
+- ה-Service Worker ב-`public/sw.js` תומך ב-action buttons "בוצע" / "דלג" שמסמנים את ה-occurrence ישירות מההתראה.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## n8n cron
+Workflow פשוט על ה-VPS: Schedule Trigger כל דקה → HTTP Request:
+```
+POST https://<your-domain>/api/internal/cron/dispatch
+Headers: x-cron-secret: <CRON_SECRET>
+```
 
-## Learn More
+## RLS Model
+- `patient` רואה רק את עצמו ואת בני המשפחה שלו.
+- `patient_members.role` קובע גישה: `admin` > `editor` > `viewer`.
+- `viewer` קריאה בלבד.
+- ל-`patient_members` ו-`invitations` יש מדיניות כתיבה ל-`admin` או למטופל עצמו בלבד.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Known Gaps (MVP)
+- אין email/SMS — הזמנות מועברות כקישור שצריך להעתיק ידנית.
+- אין גרפים להיסטוריית לחץ דם (יבוא בפעימה הבאה).
+- אין אריזת תרופה (inventory).
+- אין phone auth — רק email + password.
