@@ -45,32 +45,32 @@ export function DefaultTimesForm({ initial }: { initial: DefaultTimes }) {
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <label className="label">🌅 בוקר</label>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <label className="label m-0 shrink-0 text-base">🌅 בוקר</label>
           <input
             type="time"
-            className="input"
+            className="input w-32"
             dir="ltr"
             value={morning}
             onChange={(e) => setMorning(e.target.value)}
           />
         </div>
-        <div>
-          <label className="label">☀️ צהריים</label>
+        <div className="flex items-center justify-between gap-3">
+          <label className="label m-0 shrink-0 text-base">☀️ צהריים</label>
           <input
             type="time"
-            className="input"
+            className="input w-32"
             dir="ltr"
             value={noon}
             onChange={(e) => setNoon(e.target.value)}
           />
         </div>
-        <div>
-          <label className="label">🌙 ערב</label>
+        <div className="flex items-center justify-between gap-3">
+          <label className="label m-0 shrink-0 text-base">🌙 ערב</label>
           <input
             type="time"
-            className="input"
+            className="input w-32"
             dir="ltr"
             value={evening}
             onChange={(e) => setEvening(e.target.value)}

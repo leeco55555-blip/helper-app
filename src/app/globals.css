@@ -180,6 +180,23 @@ button:disabled,
   box-shadow: 0 0 0 4px var(--primary-soft);
 }
 
+/* Native iOS time/date pickers render their own widget icon and overflow narrow
+ * inputs. Trim the inner padding and force a centred, monospaced value so the
+ * picker chrome and the displayed value both fit cleanly. */
+input.input[type="time"],
+input.input[type="date"],
+input.input[type="datetime-local"] {
+  padding: 0 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  min-height: 52px;
+}
+input.input[type="time"]::-webkit-date-and-time-value,
+input.input[type="date"]::-webkit-date-and-time-value {
+  text-align: center;
+  margin: 0;
+}
+
 /* --- Cards --- */
 .card {
   background: var(--surface);
