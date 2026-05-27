@@ -51,7 +51,7 @@ export async function PATCH(
       .eq("schedule_id", id)
       .eq("status", "pending")
       .gte("due_at", new Date().toISOString());
-    await expandSchedule(id, { daysAhead: 7 });
+    await expandSchedule(id);
   }
   return NextResponse.json({ ok: true });
 }

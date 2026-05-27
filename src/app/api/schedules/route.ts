@@ -7,7 +7,7 @@ import { getPatientRole, roleAtLeast } from "@/lib/schedules/access";
 
 const Create = z.object({
   patient_id: z.string().uuid(),
-  kind: z.enum(["medication", "injection", "measurement", "exam", "workout"]),
+  kind: z.enum(["medication", "measurement", "exam", "workout"]),
   title: z.string().min(1),
   dose_text: z.string().optional().nullable(),
   measurement_unit: z.string().optional().nullable(),
@@ -52,6 +52,6 @@ export async function POST(req: Request) {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  await expandSchedule(data.id, { daysAhead: 7 });
+  await expandSchedule(data.id);
   return NextResponse.json({ id: data.id });
 }

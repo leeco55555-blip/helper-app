@@ -13,19 +13,31 @@ const TABS = [
 export function BottomNav() {
   const pathname = usePathname();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-20 border-t border-[var(--border)] bg-[var(--surface)]">
-      <ul className="max-w-2xl mx-auto grid grid-cols-4">
+    <nav
+      className="fixed bottom-0 inset-x-0 z-20"
+      style={{
+        background: "color-mix(in oklab, var(--surface) 92%, transparent)",
+        backdropFilter: "blur(12px)",
+        boxShadow: "0 -1px 2px rgba(15,17,21,0.04), 0 -8px 24px rgba(15,17,21,0.06)",
+      }}
+    >
+      <ul className="max-w-2xl mx-auto grid grid-cols-4 px-2 pt-2 pb-3 gap-1">
         {TABS.map((t) => {
-          const active = pathname === t.href || pathname.startsWith(t.href + "/") || pathname.startsWith(t.href + "?");
+          const active =
+            pathname === t.href ||
+            pathname.startsWith(t.href + "/") ||
+            pathname.startsWith(t.href + "?");
           return (
             <li key={t.href}>
               <Link
                 href={t.href}
-                className={`flex flex-col items-center justify-center gap-1 py-3 text-sm font-medium ${
-                  active ? "text-[var(--primary)]" : "text-[var(--muted)]"
-                }`}
+                className="flex flex-col items-center justify-center gap-1 py-2 rounded-2xl text-xs font-semibold transition"
+                style={{
+                  color: active ? "var(--primary)" : "var(--muted)",
+                  background: active ? "var(--primary-soft)" : "transparent",
+                }}
               >
-                <span className="text-2xl" aria-hidden>{t.icon}</span>
+                <span className="text-2xl leading-none" aria-hidden>{t.icon}</span>
                 <span>{t.label}</span>
               </Link>
             </li>

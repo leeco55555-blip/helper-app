@@ -5,15 +5,13 @@ import { useRouter } from "next/navigation";
 
 const KIND_LABEL: Record<string, string> = {
   medication: "תרופה",
-  injection: "זריקה",
-  measurement: "בדיקה",
+  measurement: "בדיקה ביתית",
   exam: "בדיקה רפואית",
   workout: "אימון",
 };
 
 const KIND_EMOJI: Record<string, string> = {
   medication: "💊",
-  injection: "💉",
   measurement: "🩺",
   exam: "🧪",
   workout: "🏃",
@@ -98,24 +96,32 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
 
   return (
     <li
-      className={`card transition ${
+      className={`card-elevated transition ${
         isTaken
-          ? "bg-[var(--success-soft)] border-[var(--success)]"
+          ? "bg-[var(--success-soft)]"
           : isSkipped
             ? "opacity-70"
             : ""
       }`}
     >
       <div className="flex items-start gap-3">
-        <div className="text-3xl" aria-hidden>{KIND_EMOJI[k] ?? "📌"}</div>
+        <div
+          className="shrink-0 size-14 rounded-2xl flex items-center justify-center text-3xl"
+          style={{
+            background: isTaken ? "rgba(19,122,74,0.12)" : "var(--primary-soft)",
+          }}
+          aria-hidden
+        >
+          {KIND_EMOJI[k] ?? "📌"}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-[var(--muted)]">{KIND_LABEL[k]}</span>
-            <span className="text-sm font-bold text-[var(--primary)]">{time}</span>
+            <span className="text-sm font-semibold text-[var(--muted)]">{KIND_LABEL[k] ?? k}</span>
+            <span className="text-sm font-bold text-[var(--primary)]" dir="ltr">{time}</span>
           </div>
-          <p className="text-xl font-bold mt-0.5">{occ.schedule?.title}</p>
+          <p className="text-xl font-bold mt-0.5 break-words">{occ.schedule?.title}</p>
           {occ.schedule?.dose_text && (
-            <p className="text-base text-[var(--muted)] mt-0.5">{occ.schedule.dose_text}</p>
+            <p className="text-base text-[var(--muted)] mt-0.5 break-words">{occ.schedule.dose_text}</p>
           )}
           {isTaken && occ.measurement_values && occ.schedule?.measurement_unit && (
             <p className="text-base mt-1 font-semibold">
@@ -222,9 +228,10 @@ function MeasurementDialog({
   const [vals, setVals] = useState<string[]>(Array.from({ length: count }, () => ""));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md bg-[var(--surface)] rounded-3xl p-6 flex flex-col gap-4">
-        <h3 className="text-xl font-bold">{schedule.title}</h3>
+    <div className="sheet-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="sheet flex flex-col gap-4">
+        <div className="sheet-handle" aria-hidden />
+        <h3 className="text-2xl font-bold">{schedule.title}</h3>
         <p className="text-[var(--muted)]">הזן את הערך{count > 1 ? "ים" : ""}.</p>
         <div className="flex gap-3">
           {vals.map((v, i) => (

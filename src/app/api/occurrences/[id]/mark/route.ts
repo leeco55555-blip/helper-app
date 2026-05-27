@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { expandSchedule } from "@/lib/schedules/expand";
 
 const Body = z.object({
   status: z.enum(["pending", "taken", "skipped"]),
@@ -41,5 +42,26 @@ export async function POST(
     .eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  // For interval schedules (monthly/yearly etc.) the next occurrence may be
+  // far in the future. After marking taken, ensure the following one exists.
+  if (status === "taken") {
+    try {
+      const svc = createServiceClient();
+      const { data: occ } = await svc
+        .from("schedule_occurrences")
+        .select("schedule_id, schedule:schedules(pattern)")
+        .eq("id", id)
+        .maybeSingle();
+      const schedule = Array.isArray(occ?.schedule) ? occ?.schedule[0] : occ?.schedule;
+      const pattern = schedule?.pattern as { freq?: string } | undefined;
+      if (occ?.schedule_id && pattern?.freq === "interval") {
+        await expandSchedule(occ.schedule_id);
+      }
+    } catch {
+      // Roll-forward is best-effort; the main mark already succeeded.
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }

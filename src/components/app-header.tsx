@@ -13,17 +13,21 @@ export function AppHeader({ title, backHref }: { title: string; backHref?: strin
     router.refresh();
   }
   return (
-    <header className="sticky top-0 z-10 bg-[var(--background)]/95 backdrop-blur border-b border-[var(--border)]">
-      <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {backHref && (
+    <header className="sticky top-0 z-10 bg-[var(--background)]/85 backdrop-blur-md">
+      <div className="max-w-2xl mx-auto px-4 pt-3 pb-2 flex flex-col gap-2">
+        <div className="flex items-center justify-between min-h-[40px]">
+          {backHref ? (
             <Link href={backHref} className="btn-ghost px-2" aria-label="חזרה">
-              <span aria-hidden>→</span>
+              <span aria-hidden className="text-xl">→</span>
             </Link>
+          ) : (
+            <span />
           )}
-          <h1 className="text-2xl font-bold">{title}</h1>
+          <button onClick={logout} className="btn-ghost text-[var(--muted-strong)]">
+            יציאה
+          </button>
         </div>
-        <button onClick={logout} className="btn-ghost text-base">יציאה</button>
+        <h1 className="page-title pb-1 truncate">{title}</h1>
       </div>
     </header>
   );
