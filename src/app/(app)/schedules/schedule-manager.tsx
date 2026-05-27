@@ -27,7 +27,7 @@ type Schedule = {
   notes: string | null;
   active: boolean;
   pattern: {
-    freq: "daily" | "weekly" | "custom" | "interval";
+    freq: "once" | "daily" | "weekly" | "custom" | "interval";
     days_of_week?: number[];
     times: string[];
     every_n_days?: number;
@@ -134,6 +134,10 @@ export function ScheduleManager({
 
 function patternSummary(p: Schedule["pattern"]): string {
   const times = p.times.join(", ");
+  if (p.freq === "once") {
+    const date = p.anchor_date ? formatHebDate(p.anchor_date) : "—";
+    return `חד פעמי • ${date} • ${times}`;
+  }
   if (p.freq === "daily") return `כל יום • ${times}`;
   if (p.freq === "weekly") {
     const days = (p.days_of_week ?? []).map((d) => DAYS_FULL[d]).join(", ");
@@ -206,7 +210,7 @@ function ScheduleDialog({
   const [dose, setDose] = useState(schedule?.dose_text ?? "");
   const [unit, setUnit] = useState(schedule?.measurement_unit ?? "");
   const [valueCount, setValueCount] = useState(schedule?.measurement_value_count ?? 0);
-  const [freq, setFreq] = useState<"daily" | "weekly" | "custom" | "interval">(
+  const [freq, setFreq] = useState<"once" | "daily" | "weekly" | "custom" | "interval">(
     schedule?.pattern.freq ?? "daily",
   );
   const [days, setDays] = useState<number[]>(
@@ -218,7 +222,7 @@ function ScheduleDialog({
   );
   const [intervalN, setIntervalN] = useState<number>(schedule?.pattern.interval_n ?? 1);
   const [anchorDate, setAnchorDate] = useState<string>(
-    schedule?.pattern.anchor_date ?? defaultAnchor(),
+    schedule?.pattern.anchor_date ?? todayYmdLocal(),
   );
   const [times, setTimes] = useState<string[]>(schedule?.pattern.times ?? [defaultTimes.morning]);
   const [saving, setSaving] = useState(false);
@@ -244,9 +248,9 @@ function ScheduleDialog({
   async function save() {
     setSaving(true);
     setError(null);
-    if (freq === "interval" && !anchorDate) {
+    if ((freq === "interval" || freq === "once") && !anchorDate) {
       setSaving(false);
-      setError("בחר תאריך להפעם הקרובה");
+      setError("בחר תאריך");
       return;
     }
     if (times.length === 0) {
@@ -262,6 +266,7 @@ function ScheduleDialog({
       ...(freq === "interval"
         ? { interval_unit: intervalUnit, interval_n: intervalN, anchor_date: anchorDate }
         : {}),
+      ...(freq === "once" ? { anchor_date: anchorDate } : {}),
     };
     const body = {
       patient_id: patientId,
@@ -392,6 +397,7 @@ function ScheduleDialog({
           <div className="flex flex-wrap gap-2">
             {(
               [
+                ["once", "חד פעמי"],
                 ["daily", "כל יום"],
                 ["weekly", "ימים בשבוע"],
                 ["custom", "כל X ימים"],
@@ -409,6 +415,22 @@ function ScheduleDialog({
               </button>
             ))}
           </div>
+
+          {freq === "once" && (
+            <div>
+              <label className="label">תאריך</label>
+              <input
+                type="date"
+                className="input"
+                dir="ltr"
+                value={anchorDate}
+                onChange={(e) => setAnchorDate(e.target.value)}
+              />
+              <p className="text-sm text-[var(--muted)] mt-2">
+                תזכורת תופיע פעם אחת בלבד בתאריך ובשעות שתבחר.
+              </p>
+            </div>
+          )}
 
           {freq === "weekly" && (
             <div>
@@ -595,10 +617,8 @@ function ScheduleDialog({
   );
 }
 
-function defaultAnchor(): string {
-  // One year from today, formatted YYYY-MM-DD in local time.
+function todayYmdLocal(): string {
   const d = new Date();
-  d.setFullYear(d.getFullYear() + 1);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");

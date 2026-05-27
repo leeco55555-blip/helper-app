@@ -3,7 +3,7 @@ import { fromZonedTime } from "date-fns-tz";
 import { addDays, addMonths, addYears, startOfDay } from "date-fns";
 
 export const PatternSchema = z.object({
-  freq: z.enum(["daily", "weekly", "custom", "interval"]),
+  freq: z.enum(["once", "daily", "weekly", "custom", "interval"]),
   days_of_week: z.array(z.number().int().min(0).max(6)).optional(),
   times: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)).min(1),
   every_n_days: z.number().int().min(1).optional(),
@@ -28,6 +28,9 @@ export function expandOccurrences(
   from: Date,
   until: Date,
 ): Date[] {
+  if (pattern.freq === "once") {
+    return expandOnce(pattern, from, until);
+  }
   if (pattern.freq === "interval") {
     return expandInterval(pattern, from, until);
   }
@@ -66,6 +69,14 @@ export function expandOccurrences(
     day = addDays(day, 1);
   }
 
+  return result;
+}
+
+function expandOnce(pattern: Pattern, from: Date, until: Date): Date[] {
+  const result: Date[] = [];
+  if (!pattern.anchor_date) return result;
+  const day = new Date(pattern.anchor_date + "T00:00:00");
+  pushDayTimes(result, day, pattern.times, from, until);
   return result;
 }
 

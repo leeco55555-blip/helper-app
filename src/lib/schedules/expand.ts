@@ -22,11 +22,12 @@ export async function expandSchedule(
   if (!schedule.active) return { inserted: 0 };
 
   const pattern = PatternSchema.parse(schedule.pattern as Pattern);
-  // Interval schedules in months/years can sit far in the future — extend the
-  // window so the next anchor occurrence is always materialized.
+  // Low-frequency or one-time schedules can sit far in the future — extend the
+  // window so the anchor occurrence is always materialized.
   const isLowFrequency =
-    pattern.freq === "interval" &&
-    (pattern.interval_unit === "months" || pattern.interval_unit === "years");
+    pattern.freq === "once" ||
+    (pattern.freq === "interval" &&
+      (pattern.interval_unit === "months" || pattern.interval_unit === "years"));
   const daysAhead =
     options.daysAhead ?? (isLowFrequency ? 400 : 7);
   const until = addDays(from, daysAhead);
