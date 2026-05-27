@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { KIND_LABEL, KIND_EMOJI, ALL_KINDS } from "@/lib/schedules/kind-labels";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const DAYS_SHORT = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const DAYS_FULL = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
@@ -155,20 +156,33 @@ function formatHebDate(ymd: string): string {
 
 function DeleteButton({ id, onDone }: { id: string; onDone: () => void }) {
   const [pending, start] = useTransition();
+  const [open, setOpen] = useState(false);
   return (
-    <button
-      className="btn-danger"
-      disabled={pending}
-      onClick={() => {
-        if (!confirm("למחוק תזכורת זו?")) return;
-        start(async () => {
-          await fetch(`/api/schedules/${id}`, { method: "DELETE" });
-          onDone();
-        });
-      }}
-    >
-      מחיקה
-    </button>
+    <>
+      <button
+        className="btn-danger"
+        disabled={pending}
+        onClick={() => setOpen(true)}
+      >
+        מחיקה
+      </button>
+      {open && (
+        <ConfirmDialog
+          title="למחוק תזכורת זו?"
+          message="פעולה זו תסיר את התזכורת ואת המופעים העתידיים שלה. לא ניתן לשחזר."
+          confirmLabel="מחק"
+          danger
+          onCancel={() => setOpen(false)}
+          onConfirm={() => {
+            setOpen(false);
+            start(async () => {
+              await fetch(`/api/schedules/${id}`, { method: "DELETE" });
+              onDone();
+            });
+          }}
+        />
+      )}
+    </>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type PendingInvite = {
   id: string;
@@ -49,6 +50,7 @@ export function InvitePatientSection({ pending }: { pending: PendingInvite[] }) 
 function PendingRow({ invite, onChange }: { invite: PendingInvite; onChange: () => void }) {
   const [pending, start] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   function copy() {
     const url = `${window.location.origin}/invite/${invite.token}`;
@@ -58,7 +60,6 @@ function PendingRow({ invite, onChange }: { invite: PendingInvite; onChange: () 
   }
 
   function cancel() {
-    if (!confirm("לבטל את ההזמנה?")) return;
     start(async () => {
       await fetch(`/api/family/invite-patient?id=${invite.id}`, { method: "DELETE" });
       onChange();
@@ -77,10 +78,23 @@ function PendingRow({ invite, onChange }: { invite: PendingInvite; onChange: () 
         <button className="btn-secondary" onClick={copy}>
           {copied ? "הועתק ✓" : "העתק קישור"}
         </button>
-        <button onClick={cancel} disabled={pending} className="btn-ghost text-[var(--danger)] text-sm">
+        <button onClick={() => setConfirming(true)} disabled={pending} className="btn-ghost text-[var(--danger)] text-sm">
           ביטול
         </button>
       </div>
+      {confirming && (
+        <ConfirmDialog
+          title="לבטל את ההזמנה?"
+          message="הקישור הקיים יפסיק לפעול."
+          confirmLabel="בטל הזמנה"
+          danger
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            cancel();
+          }}
+        />
+      )}
     </li>
   );
 }

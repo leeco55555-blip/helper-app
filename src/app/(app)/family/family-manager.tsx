@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Member = {
   role: "admin" | "editor" | "viewer";
@@ -133,20 +134,22 @@ function RoleButtons({
   onChange: () => void;
 }) {
   const [pending, start] = useTransition();
-  function change(newRole: Member["role"] | "remove") {
+  const [confirming, setConfirming] = useState(false);
+  function change(newRole: Member["role"]) {
     start(async () => {
-      if (newRole === "remove") {
-        if (!confirm("להסיר את בן המשפחה?")) return;
-        await fetch(`/api/family/members?patient=${patientId}&member=${memberId}`, {
-          method: "DELETE",
-        });
-      } else {
-        await fetch(`/api/family/members`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ patient_id: patientId, member_profile_id: memberId, role: newRole }),
-        });
-      }
+      await fetch(`/api/family/members`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ patient_id: patientId, member_profile_id: memberId, role: newRole }),
+      });
+      onChange();
+    });
+  }
+  function remove() {
+    start(async () => {
+      await fetch(`/api/family/members?patient=${patientId}&member=${memberId}`, {
+        method: "DELETE",
+      });
       onChange();
     });
   }
@@ -162,9 +165,22 @@ function RoleButtons({
         <option value="editor">עורך</option>
         <option value="viewer">צופה</option>
       </select>
-      <button onClick={() => change("remove")} disabled={pending} className="btn-ghost text-[var(--danger)] text-sm">
+      <button onClick={() => setConfirming(true)} disabled={pending} className="btn-ghost text-[var(--danger)] text-sm">
         הסרה
       </button>
+      {confirming && (
+        <ConfirmDialog
+          title="להסיר את בן המשפחה?"
+          message="הוא לא יוכל יותר לצפות בלוחות הזמנים של המטופל."
+          confirmLabel="הסר"
+          danger
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            remove();
+          }}
+        />
+      )}
     </div>
   );
 }
