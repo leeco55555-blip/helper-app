@@ -9,13 +9,24 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: "תזכורת — תרופות ואימונים",
+  title: "עוזר אישי",
   description: "אפליקציה לניהול תרופות, בדיקות ואימונים — עבורך ועבור היקרים לך",
   manifest: "/manifest.webmanifest",
+  applicationName: "עוזר אישי",
   appleWebApp: {
     capable: true,
-    title: "תזכורת",
+    title: "עוזר אישי",
     statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/favicon.ico"],
   },
 };
 
