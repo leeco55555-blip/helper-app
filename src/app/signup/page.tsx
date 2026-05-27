@@ -24,7 +24,7 @@ function SignupInner() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("1");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -190,14 +190,16 @@ function SignupInner() {
             <input
               id="password"
               type="password"
+              autoComplete="new-password"
               required
-              minLength={1}
+              minLength={6}
               className="input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="לפחות 6 תווים"
             />
             <p className="text-sm text-[var(--muted)] mt-2">
-              הסיסמא הראשונית היא <strong>1</strong>. מומלץ לשנות בהגדרות.
+              מינימום 6 תווים.
             </p>
           </div>
 

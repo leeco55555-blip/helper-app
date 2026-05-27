@@ -31,11 +31,13 @@ const ROLE_LABEL = {
 export function FamilyManager({
   patientId,
   isAdmin,
+  currentUserId,
   members,
   pending,
 }: {
   patientId: string;
   isAdmin: boolean;
+  currentUserId: string;
   members: Member[];
   pending: Invitation[];
 }) {
@@ -67,13 +69,16 @@ export function FamilyManager({
                     {m.member.phone ? ` · ${m.member.phone}` : ""}
                   </div>
                 </div>
-                {isAdmin && (
+                {isAdmin && m.member.id !== currentUserId && (
                   <RoleButtons
                     patientId={patientId}
                     memberId={m.member.id}
                     currentRole={m.role}
                     onChange={() => router.refresh()}
                   />
+                )}
+                {m.member.id === currentUserId && (
+                  <span className="text-sm text-[var(--muted)]">זה אתה</span>
                 )}
               </li>
             ))}

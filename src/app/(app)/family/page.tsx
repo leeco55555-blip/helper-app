@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccessiblePatients } from "@/lib/schedules/access";
 import { AppHeader } from "@/components/app-header";
 import { FamilyManager } from "./family-manager";
+import { InvitePatientSection } from "./invite-patient";
 
 export default async function FamilyPage({
   searchParams,
@@ -18,13 +19,25 @@ export default async function FamilyPage({
 
   const patients = await getAccessiblePatients();
   if (patients.length === 0) {
+    const { data: myPending } = await supabase
+      .from("invitations")
+      .select("id, target_name, target_email, target_phone, token, expires_at")
+      .eq("inviter_profile_id", user.id)
+      .eq("kind", "family_to_patient")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
     return (
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col pb-24">
         <AppHeader title="משפחה" />
-        <div className="max-w-2xl mx-auto w-full p-4">
-          <div className="card text-center py-12 text-[var(--muted)]">
-            <p>אין עדיין מטופל מקושר.</p>
+        <div className="max-w-2xl mx-auto w-full px-4 pt-4 flex flex-col gap-4">
+          <div className="card flex flex-col gap-2">
+            <h2 className="text-xl font-bold">אין עדיין מטופל מקושר</h2>
+            <p className="text-[var(--muted)]">
+              הזמן את המטופל שלך להירשם. ברגע שיצטרף — תהפוך אוטומטית למנהל שלו.
+            </p>
           </div>
+          <InvitePatientSection pending={myPending ?? []} />
         </div>
       </main>
     );
@@ -70,6 +83,7 @@ export default async function FamilyPage({
         <FamilyManager
           patientId={selectedId}
           isAdmin={selected.role === "admin"}
+          currentUserId={user.id}
           members={(members ?? []).map((m) => ({
             role: m.role,
             receive_reminders: m.receive_reminders,

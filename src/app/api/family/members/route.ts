@@ -18,6 +18,19 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "unauth" }, { status: 401 });
+
+  if (member_profile_id === user.id) {
+    return NextResponse.json(
+      { error: "אי אפשר לשנות את התפקיד של עצמך — תאבד את הגישה לניהול" },
+      { status: 400 },
+    );
+  }
+
   const svc = createServiceClient();
   const { error } = await svc
     .from("patient_members")
@@ -44,7 +57,13 @@ export async function DELETE(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauth" }, { status: 401 });
 
-  // Don't allow removing yourself if you're the only admin? skip MVP edge.
+  if (member === user.id) {
+    return NextResponse.json(
+      { error: "אי אפשר להסיר את עצמך — תאבד את הגישה למטופל" },
+      { status: 400 },
+    );
+  }
+
   const svc = createServiceClient();
   const { error } = await svc
     .from("patient_members")

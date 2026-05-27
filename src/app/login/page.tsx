@@ -18,7 +18,7 @@ function LoginInner() {
   const params = useSearchParams();
   const next = params.get("next") || "/today";
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("1");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,13 +73,11 @@ function LoginInner() {
               type="password"
               autoComplete="current-password"
               required
+              minLength={6}
               className="input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <p className="text-sm text-[var(--muted)] mt-2">
-              סיסמא ראשונית למשתמשים חדשים: <strong>1</strong>
-            </p>
           </div>
 
           {error && (

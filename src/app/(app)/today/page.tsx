@@ -41,7 +41,10 @@ export default async function TodayPage({
         <div className="card max-w-md space-y-4">
           <h1 className="text-2xl font-bold">אין עדיין מטופל מקושר</h1>
           {profile.role_type === "family" ? (
-            <p>בקש מבן המשפחה הקשיש להזמין אותך, או הזמן אותו להירשם — שלח לו את הקישור הזה: <strong>{process.env.NEXT_PUBLIC_SITE_URL || ""}/signup</strong></p>
+            <>
+              <p>הזמן את המטופל שלך להירשם — ברגע שיצטרף, תהפוך אוטומטית למנהל שלו.</p>
+              <Link href="/family" className="btn-primary">הזמנת מטופל</Link>
+            </>
           ) : (
             <p>נראה שהחשבון שלך לא הושלם. נסה להירשם מחדש.</p>
           )}
@@ -85,11 +88,10 @@ export default async function TodayPage({
               <Link
                 key={p.id}
                 href={`/today?patient=${p.id}`}
-                className={`px-4 py-2 rounded-2xl border whitespace-nowrap text-base font-medium ${
-                  p.id === selected.id
+                className={`px-4 py-2 rounded-2xl border whitespace-nowrap text-base font-medium ${p.id === selected.id
                     ? "bg-[var(--primary)] text-white border-[var(--primary)]"
                     : "bg-[var(--surface)] border-[var(--border)]"
-                }`}
+                  }`}
               >
                 {p.display_name}
               </Link>
