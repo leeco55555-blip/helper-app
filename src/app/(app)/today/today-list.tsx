@@ -82,22 +82,72 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
 
   const needsMeasurement = (occ.schedule?.measurement_value_count ?? 0) > 0;
 
+  // Compact "taken" row — minimal vertical space, green tint.
+  if (isTaken) {
+    return (
+      <li
+        className="rounded-2xl px-3 py-2 flex items-center gap-3 border transition"
+        style={{
+          background: "var(--success-soft)",
+          borderColor: "rgba(19,122,74,0.22)",
+        }}
+      >
+        <div
+          className="shrink-0 size-9 rounded-xl flex items-center justify-center text-lg"
+          style={{ background: "rgba(19,122,74,0.18)" }}
+          aria-hidden
+        >
+          {KIND_EMOJI[k as keyof typeof KIND_EMOJI] ?? "📌"}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <span
+              className="font-bold truncate text-[15px]"
+              style={{ color: "var(--success)" }}
+            >
+              ✓ {occ.schedule?.title}
+            </span>
+            <span
+              className="text-xs font-semibold shrink-0 opacity-80"
+              style={{ color: "var(--success)" }}
+              dir="ltr"
+            >
+              {time}
+            </span>
+          </div>
+          {(occ.schedule?.dose_text || (occ.measurement_values && occ.schedule?.measurement_unit)) && (
+            <div className="text-xs text-[var(--muted)] truncate">
+              {occ.measurement_values && occ.schedule?.measurement_unit
+                ? `${occ.measurement_values.join(" / ")} ${occ.schedule.measurement_unit}`
+                : occ.schedule?.dose_text}
+            </div>
+          )}
+        </div>
+        {canEdit && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => mark("pending")}
+            className="shrink-0 text-xs font-semibold px-2 py-1 rounded-full"
+            style={{ color: "var(--success)" }}
+          >
+            ביטול
+          </button>
+        )}
+      </li>
+    );
+  }
+
   return (
     <li
       className={`card-elevated transition ${
-        isTaken
-          ? "bg-[var(--success-soft)]"
-          : isSkipped
-            ? "opacity-70"
-            : ""
+        isSkipped ? "opacity-70" : ""
       }`}
     >
       <div className="flex items-start gap-3">
         <div
           className="shrink-0 size-14 rounded-2xl flex items-center justify-center text-3xl"
-          style={{
-            background: isTaken ? "rgba(19,122,74,0.12)" : "var(--primary-soft)",
-          }}
+          style={{ background: "var(--primary-soft)" }}
           aria-hidden
         >
           {KIND_EMOJI[k as keyof typeof KIND_EMOJI] ?? "📌"}
@@ -111,15 +161,10 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
           {occ.schedule?.dose_text && (
             <p className="text-base text-[var(--muted)] mt-0.5 break-words">{occ.schedule.dose_text}</p>
           )}
-          {isTaken && occ.measurement_values && occ.schedule?.measurement_unit && (
-            <p className="text-base mt-1 font-semibold">
-              {occ.measurement_values.join(" / ")} {occ.schedule.measurement_unit}
-            </p>
-          )}
         </div>
       </div>
 
-      {!isSelf && !isTaken && (
+      {!isSelf && (
         <div className="mt-3">
           <RemindNowButton patientId={patientId} occurrenceId={occ.id} />
         </div>
@@ -127,7 +172,7 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
 
       {canEdit && (
         <div className="flex gap-2 mt-4">
-          {!isTaken && (
+          {!isSkipped && (
             <button
               type="button"
               disabled={pending}
@@ -137,7 +182,7 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
               {pending ? "..." : "בוצע ✓"}
             </button>
           )}
-          {!isTaken && !isSkipped && (
+          {!isSkipped && (
             <button
               type="button"
               disabled={pending}
@@ -147,7 +192,7 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
               לא בוצע
             </button>
           )}
-          {(isTaken || isSkipped) && (
+          {isSkipped && (
             <button
               type="button"
               disabled={pending}
