@@ -3,19 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-const KIND_LABEL: Record<string, string> = {
-  medication: "תרופה",
-  measurement: "בדיקה ביתית",
-  exam: "בדיקה רפואית",
-  workout: "אימון",
-};
-
-const KIND_EMOJI: Record<string, string> = {
-  medication: "💊",
-  measurement: "🩺",
-  exam: "🧪",
-  workout: "🏃",
-};
+import { KIND_LABEL, KIND_EMOJI, ALL_KINDS } from "@/lib/schedules/kind-labels";
 
 const DAYS_SHORT = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const DAYS_FULL = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
@@ -91,11 +79,11 @@ export function ScheduleManager({
                   className="shrink-0 size-12 rounded-2xl bg-[var(--primary-soft)] flex items-center justify-center text-2xl"
                   aria-hidden
                 >
-                  {KIND_EMOJI[s.kind] ?? "📌"}
+                  {KIND_EMOJI[s.kind as keyof typeof KIND_EMOJI] ?? "📌"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-[var(--muted)]">
-                    {KIND_LABEL[s.kind] ?? s.kind}
+                    {KIND_LABEL[s.kind as keyof typeof KIND_LABEL] ?? s.kind}
                   </div>
                   <div className="text-xl font-bold mt-0.5 break-words">{s.title}</div>
                   {s.dose_text && (
@@ -313,7 +301,7 @@ function ScheduleDialog({
         <div className="subcard">
           <label className="label">סוג</label>
           <div className="grid grid-cols-2 gap-2">
-            {(["medication", "measurement", "exam", "workout"] as const).map((k) => (
+            {ALL_KINDS.map((k) => (
               <button
                 key={k}
                 type="button"

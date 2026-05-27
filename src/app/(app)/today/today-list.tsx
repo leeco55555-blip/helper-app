@@ -3,19 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-const KIND_LABEL: Record<string, string> = {
-  medication: "תרופה",
-  measurement: "בדיקה ביתית",
-  exam: "בדיקה רפואית",
-  workout: "אימון",
-};
-
-const KIND_EMOJI: Record<string, string> = {
-  medication: "💊",
-  measurement: "🩺",
-  exam: "🧪",
-  workout: "🏃",
-};
+import { KIND_LABEL, KIND_EMOJI } from "@/lib/schedules/kind-labels";
 
 type Occurrence = {
   id: string;
@@ -112,11 +100,11 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
           }}
           aria-hidden
         >
-          {KIND_EMOJI[k] ?? "📌"}
+          {KIND_EMOJI[k as keyof typeof KIND_EMOJI] ?? "📌"}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-[var(--muted)]">{KIND_LABEL[k] ?? k}</span>
+            <span className="text-sm font-semibold text-[var(--muted)]">{KIND_LABEL[k as keyof typeof KIND_LABEL] ?? k}</span>
             <span className="text-sm font-bold text-[var(--primary)]" dir="ltr">{time}</span>
           </div>
           <p className="text-xl font-bold mt-0.5 break-words">{occ.schedule?.title}</p>
@@ -156,7 +144,7 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
               onClick={() => mark("skipped")}
               className="btn-secondary"
             >
-              דלג
+              לא בוצע
             </button>
           )}
           {(isTaken || isSkipped) && (

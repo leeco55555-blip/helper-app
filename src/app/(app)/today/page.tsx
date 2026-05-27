@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccessiblePatients } from "@/lib/schedules/access";
 import { AppHeader } from "@/components/app-header";
 import { TodayList } from "./today-list";
+import { dayWindow, todayYmd } from "@/lib/schedules/time-window";
 
 export default async function TodayPage({
   searchParams,
@@ -60,15 +61,7 @@ export default async function TodayPage({
       : patients[0].id;
   const selected = patients.find((p) => p.id === selectedId)!;
 
-  // Today's window in Asia/Jerusalem
-  const now = new Date();
-  // Compute window: today 00:00 → tomorrow 00:00 in Jerusalem timezone, expressed in UTC.
-  const tzOffsetMs = getJerusalemOffsetMs(now);
-  const localNow = new Date(now.getTime() + tzOffsetMs);
-  const localStart = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate()));
-  const localEnd = new Date(localStart.getTime() + 24 * 3600 * 1000);
-  const fromUtc = new Date(localStart.getTime() - tzOffsetMs);
-  const toUtc = new Date(localEnd.getTime() - tzOffsetMs);
+  const { fromUtc, toUtc } = dayWindow(todayYmd());
 
   const { data: occurrences } = await supabase
     .from("schedule_occurrences")
@@ -121,16 +114,3 @@ export default async function TodayPage({
   );
 }
 
-function getJerusalemOffsetMs(d: Date): number {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Jerusalem",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(d).filter((p) => p.type !== "literal").map((p) => [p.type, p.value]));
-  const asUtc = Date.UTC(
-    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
-    Number(parts.hour) % 24, Number(parts.minute), Number(parts.second),
-  );
-  return asUtc - d.getTime();
-}
