@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/today", label: "היום", icon: "🏠" },
+  { href: "/tomorrow", label: "מחר", icon: "📅" },
   { href: "/schedules", label: "לו״ז", icon: "📋" },
   { href: "/history", label: "היסטוריה", icon: "📊" },
   { href: "/family", label: "משפחה", icon: "👨‍👩‍👧" },
@@ -22,7 +23,7 @@ export function BottomNav() {
         boxShadow: "0 -1px 2px rgba(15,17,21,0.04), 0 -8px 24px rgba(15,17,21,0.06)",
       }}
     >
-      <ul className="max-w-2xl mx-auto grid grid-cols-5 px-1 pt-2 pb-3 gap-0.5">
+      <ul className="max-w-2xl mx-auto grid grid-cols-6 px-1 pt-2 pb-3 gap-0.5">
         {TABS.map((t) => {
           const active =
             pathname === t.href ||

@@ -27,16 +27,20 @@ export function TodayList({
   patientId,
   canEdit,
   isSelf,
+  readOnly = false,
+  emptyText = "אין משימות להיום.",
 }: {
   occurrences: Occurrence[];
   patientId: string;
   canEdit: boolean;
   isSelf: boolean;
+  readOnly?: boolean;
+  emptyText?: string;
 }) {
   if (occurrences.length === 0) {
     return (
       <div className="card text-center py-12 text-[var(--muted)]">
-        <p className="text-lg">אין משימות להיום.</p>
+        <p className="text-lg">{emptyText}</p>
         <p className="text-sm mt-2">תוכל להוסיף תזכורות חדשות במסך &quot;ניהול לו״ז&quot;.</p>
       </div>
     );
@@ -44,13 +48,13 @@ export function TodayList({
   return (
     <ul className="flex flex-col gap-3">
       {occurrences.map((o) => (
-        <OccurrenceCard key={o.id} occ={o} canEdit={canEdit} patientId={patientId} isSelf={isSelf} />
+        <OccurrenceCard key={o.id} occ={o} canEdit={canEdit} patientId={patientId} isSelf={isSelf} readOnly={readOnly} />
       ))}
     </ul>
   );
 }
 
-function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; canEdit: boolean; patientId: string; isSelf: boolean }) {
+function OccurrenceCard({ occ, canEdit, patientId, isSelf, readOnly }: { occ: Occurrence; canEdit: boolean; patientId: string; isSelf: boolean; readOnly: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [openMeasure, setOpenMeasure] = useState(false);
@@ -175,9 +179,12 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
           {!isSkipped && (
             <button
               type="button"
-              disabled={pending}
+              disabled={pending || readOnly}
+              aria-disabled={readOnly}
+              title={readOnly ? "ניתן לסמן ביצוע רק במסך 'היום'" : undefined}
               onClick={() => (needsMeasurement ? setOpenMeasure(true) : mark("taken"))}
               className="btn-primary flex-1"
+              style={readOnly ? { background: "var(--muted)", opacity: 0.6, cursor: "not-allowed" } : undefined}
             >
               {pending ? "..." : "בוצע ✓"}
             </button>
@@ -185,9 +192,11 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
           {!isSkipped && (
             <button
               type="button"
-              disabled={pending}
+              disabled={pending || readOnly}
+              aria-disabled={readOnly}
               onClick={() => mark("skipped")}
               className="btn-secondary"
+              style={readOnly ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
             >
               לא בוצע
             </button>
@@ -195,9 +204,11 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf }: { occ: Occurrence; 
           {isSkipped && (
             <button
               type="button"
-              disabled={pending}
+              disabled={pending || readOnly}
+              aria-disabled={readOnly}
               onClick={() => mark("pending")}
               className="btn-secondary flex-1"
+              style={readOnly ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
             >
               ביטול
             </button>

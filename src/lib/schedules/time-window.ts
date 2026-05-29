@@ -70,6 +70,11 @@ export function todayYmd(): string {
   return `${y}-${m}-${d}`;
 }
 
+/** Tomorrow's date (Jerusalem) as YYYY-MM-DD. */
+export function tomorrowYmd(): string {
+  return shiftYmd(todayYmd(), "daily", 1);
+}
+
 export type Window = { fromUtc: Date; toUtc: Date; label: string };
 
 export function dayWindow(ymd: string): Window {
