@@ -39,9 +39,95 @@ export function OccurrenceRow({ occ }: { occ: HistoryOccurrence }) {
   const pill = STATUS_PILL[occ.status];
   const k = occ.schedule?.kind ?? "medication";
 
-  const takenAt = occ.taken_at ? new Date(occ.taken_at) : null;
-  const takenLate =
-    takenAt && Math.abs(takenAt.getTime() - dueDate.getTime()) > 30 * 60 * 1000;
+  if (occ.status === "taken") {
+    return (
+      <li
+        className="rounded-2xl px-3 py-2 flex items-center gap-3 border"
+        style={{
+          background: "var(--success-soft)",
+          borderColor: "rgba(19,122,74,0.22)",
+        }}
+      >
+        <div
+          className="shrink-0 size-9 rounded-xl flex items-center justify-center text-lg"
+          style={{ background: "rgba(19,122,74,0.18)" }}
+          aria-hidden
+        >
+          {KIND_EMOJI[k as keyof typeof KIND_EMOJI] ?? "📌"}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <span className="font-bold truncate text-[15px]" style={{ color: "var(--success)" }}>
+              ✓ {occ.schedule?.title}
+            </span>
+            <span
+              className="text-xs font-semibold shrink-0 opacity-80"
+              style={{ color: "var(--success)" }}
+              dir="ltr"
+            >
+              {dueLabel}
+            </span>
+          </div>
+          {(occ.schedule?.dose_text ||
+            (occ.measurement_values && occ.schedule?.measurement_unit)) && (
+            <div className="text-xs text-[var(--muted)] truncate">
+              {occ.measurement_values && occ.schedule?.measurement_unit
+                ? `${occ.measurement_values.join(" / ")} ${occ.schedule.measurement_unit}`
+                : occ.schedule?.dose_text}
+            </div>
+          )}
+        </div>
+      </li>
+    );
+  }
+
+  const isPastUndone =
+    occ.status === "skipped" ||
+    occ.status === "missed" ||
+    (occ.status === "pending" && dueDate.getTime() < Date.now());
+
+  if (isPastUndone) {
+    const label = occ.status === "skipped" ? "✗ לא בוצע" : "⏰ פוספס";
+    return (
+      <li
+        className="rounded-2xl px-3 py-2 flex items-center gap-3 border"
+        style={{
+          background: "var(--danger-soft, rgba(200,38,38,0.10))",
+          borderColor: "rgba(200,38,38,0.28)",
+        }}
+      >
+        <div
+          className="shrink-0 size-9 rounded-xl flex items-center justify-center text-lg"
+          style={{ background: "rgba(200,38,38,0.18)" }}
+          aria-hidden
+        >
+          {KIND_EMOJI[k as keyof typeof KIND_EMOJI] ?? "📌"}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <span
+              className="font-bold truncate text-[15px]"
+              style={{ color: "var(--danger, #c82626)" }}
+            >
+              {label} · {occ.schedule?.title}
+            </span>
+            <span
+              className="text-xs font-semibold shrink-0 opacity-80"
+              style={{ color: "var(--danger, #c82626)" }}
+              dir="ltr"
+            >
+              {dueLabel}
+            </span>
+          </div>
+          {occ.schedule?.dose_text && (
+            <div className="text-xs text-[var(--muted)] truncate">
+              {occ.schedule.dose_text}
+            </div>
+          )}
+        </div>
+      </li>
+    );
+  }
 
   return (
     <li className="card-elevated">
@@ -66,18 +152,6 @@ export function OccurrenceRow({ occ }: { occ: HistoryOccurrence }) {
           {occ.schedule?.dose_text && (
             <p className="text-base text-[var(--muted)] mt-0.5 break-words">
               {occ.schedule.dose_text}
-            </p>
-          )}
-          {occ.status === "taken" &&
-            occ.measurement_values &&
-            occ.schedule?.measurement_unit && (
-              <p className="text-base mt-1 font-semibold">
-                {occ.measurement_values.join(" / ")} {occ.schedule.measurement_unit}
-              </p>
-            )}
-          {takenLate && (
-            <p className="text-xs text-[var(--muted)] mt-1" dir="ltr">
-              {TIME_FMT.format(takenAt!)} :סומן ב
             </p>
           )}
         </div>

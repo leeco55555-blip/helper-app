@@ -77,7 +77,7 @@ export default async function HistoryPage({
     .eq("patient_id", selectedId)
     .gte("due_at", win.fromUtc.toISOString())
     .lt("due_at", win.toUtc.toISOString())
-    .order("due_at", { ascending: false })
+    .order("due_at", { ascending: true })
     .limit(500);
 
   const normalized: HistoryOccurrence[] = (rows ?? []).map((r) => ({

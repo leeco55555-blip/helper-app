@@ -232,7 +232,7 @@ function groupByDay(
     buckets.set(ymd, arr);
   }
   return Array.from(buckets.entries())
-    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([ymd, items]) => ({ ymd, items }));
 }
 
