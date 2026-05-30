@@ -42,18 +42,21 @@ export async function FamilySection({
       : patients[0].id;
   const selected = patients.find((p) => p.id === selectedId)!;
 
-  const { data: members } = await supabase
-    .from("patient_members")
-    .select(
-      "role, receive_reminders, joined_at, member:profiles!patient_members_member_profile_id_fkey(id, full_name, phone)",
-    )
-    .eq("patient_id", selectedId);
-
-  const { data: pending } = await supabase
-    .from("invitations")
-    .select("id, kind, target_email, target_name, proposed_role, token, status, expires_at, created_at")
-    .eq("patient_id", selectedId)
-    .eq("status", "pending");
+  const [membersRes, pendingRes] = await Promise.all([
+    supabase
+      .from("patient_members")
+      .select(
+        "role, receive_reminders, joined_at, member:profiles!patient_members_member_profile_id_fkey(id, full_name, phone)",
+      )
+      .eq("patient_id", selectedId),
+    supabase
+      .from("invitations")
+      .select("id, kind, target_email, target_name, proposed_role, token, status, expires_at, created_at")
+      .eq("patient_id", selectedId)
+      .eq("status", "pending"),
+  ]);
+  const members = membersRes.data;
+  const pending = pendingRes.data;
 
   return (
     <div className="flex flex-col gap-4">

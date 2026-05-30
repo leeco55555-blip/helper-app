@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { currentUserId } from "@/lib/auth/current-user";
 import { AppHeader } from "@/components/app-header";
 import { ChangePasswordForm } from "./change-password-form";
 import { DefaultTimesForm } from "./default-times-form";
 import { FamilySection } from "./family-section";
+import { OccurrencesSkeleton } from "@/components/occurrences-skeleton";
 
 type DefaultTimes = { morning: string; noon: string; evening: string };
 
@@ -28,40 +31,51 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<{ patient?: string }>;
 }) {
+  const sp = await searchParams;
+  return (
+    <main className="flex-1 flex flex-col pb-28">
+      <AppHeader title="הגדרות" />
+      <Suspense fallback={<OccurrencesSkeleton />}>
+        <SettingsBody patientParam={sp.patient} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function SettingsBody({ patientParam }: { patientParam?: string }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const uid = await currentUserId();
+  if (!uid) redirect("/login");
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", user.id)
+    .eq("id", uid)
     .maybeSingle();
 
+  // Email comes from auth.user — keep this single auth-user lookup since it's
+  // not in `profiles`. Run it in parallel with the FamilySection's queries by
+  // not awaiting separately; instead grab the email lazily here.
+  const { data: { user } } = await supabase.auth.getUser();
+
   const defaultTimes = parseDefaultTimes(profile?.default_times);
-  const sp = await searchParams;
 
   return (
-    <main className="flex-1 flex flex-col pb-28">
-      <AppHeader title="הגדרות" />
-      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
-        <div className="card flex flex-col gap-1">
-          <div className="text-[var(--muted)] text-sm font-semibold">חשבון</div>
-          <div className="text-xl font-bold break-words">{profile?.full_name ?? "—"}</div>
-          <div className="text-base text-[var(--muted)] break-all">{user.email}</div>
-          <div className="text-base text-[var(--muted)]">
-            {profile?.role_type === "patient" ? "מטופל" : "בן משפחה"}
-          </div>
+    <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
+      <div className="card flex flex-col gap-1">
+        <div className="text-[var(--muted)] text-sm font-semibold">חשבון</div>
+        <div className="text-xl font-bold break-words">{profile?.full_name ?? "—"}</div>
+        <div className="text-base text-[var(--muted)] break-all">{user?.email}</div>
+        <div className="text-base text-[var(--muted)]">
+          {profile?.role_type === "patient" ? "מטופל" : "בן משפחה"}
         </div>
-
-        <DefaultTimesForm initial={defaultTimes} />
-
-        <ChangePasswordForm />
-
-        <FamilySection userId={user.id} selectedPatientParam={sp.patient} />
       </div>
-    </main>
+
+      <DefaultTimesForm initial={defaultTimes} />
+
+      <ChangePasswordForm />
+
+      <FamilySection userId={uid} selectedPatientParam={patientParam} />
+    </div>
   );
 }

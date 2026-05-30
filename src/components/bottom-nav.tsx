@@ -33,6 +33,7 @@ export function BottomNav() {
             <li key={t.href}>
               <Link
                 href={t.href}
+                prefetch
                 className="flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded-2xl text-[11px] font-semibold transition"
                 style={{
                   color: active ? "var(--primary)" : "var(--muted)",

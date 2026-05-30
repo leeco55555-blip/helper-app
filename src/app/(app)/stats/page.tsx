@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAccessiblePatients } from "@/lib/schedules/access";
 import { AppHeader } from "@/components/app-header";
 import { scoreBand } from "@/lib/stats/score";
+import { OccurrencesSkeleton } from "@/components/occurrences-skeleton";
 
 type Row = {
   status: "pending" | "taken" | "skipped" | "missed";
@@ -22,18 +24,25 @@ export default async function StatsPage({
 }: {
   searchParams: Promise<{ patient?: string }>;
 }) {
+  const sp = await searchParams;
+  return (
+    <main className="flex-1 flex flex-col pb-28">
+      <AppHeader title="סטטיסטיקה" />
+      <Suspense fallback={<OccurrencesSkeleton />}>
+        <StatsBody patientParam={sp.patient} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function StatsBody({ patientParam }: { patientParam?: string }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   const patients = await getAccessiblePatients();
   if (patients.length === 0) redirect("/today");
 
-  const sp = await searchParams;
   const selectedId =
-    sp.patient && patients.some((p) => p.id === sp.patient) ? sp.patient! : patients[0].id;
+    patientParam && patients.some((p) => p.id === patientParam) ? patientParam : patients[0].id;
   const selected = patients.find((p) => p.id === selectedId)!;
 
   const now = new Date();
@@ -41,8 +50,9 @@ export default async function StatsPage({
 
   const { data: occRaw } = await supabase
     .from("schedule_occurrences")
-    .select("status, due_at, schedule:schedules(kind)")
+    .select("status, due_at, schedule:schedules!inner(kind)")
     .eq("patient_id", selectedId)
+    .eq("schedule.kind", "medication")
     .gte("due_at", sevenDaysAgo.toISOString())
     .lt("due_at", now.toISOString());
 
@@ -57,7 +67,6 @@ export default async function StatsPage({
   const score = hasData ? Math.round((taken / total) * 100) : 0;
   const band = scoreBand(score);
 
-  // Streak: count of consecutive days (ending yesterday) with 100% taken.
   const byDay = new Map<string, { taken: number; total: number }>();
   for (const r of medRows) {
     const d = new Date(r.due_at);
@@ -79,77 +88,75 @@ export default async function StatsPage({
   }
 
   return (
-    <main className="flex-1 flex flex-col pb-28">
-      <AppHeader title="סטטיסטיקה" />
-      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
-        {patients.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-            {patients.map((p) => (
-              <Link
-                key={p.id}
-                href={`/stats?patient=${p.id}`}
-                className="chip"
-                data-active={p.id === selected.id}
-              >
-                {p.display_name}
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {!hasData ? (
-          <div className="card text-center py-12">
-            <p className="text-lg font-semibold">אין עדיין מספיק נתונים</p>
-            <p className="text-[var(--muted)] mt-2">
-              ברגע שתסמן כדורים בלו״ז של 7 הימים האחרונים — הציון יופיע כאן.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div
-              className="card-elevated flex flex-col items-center gap-3 py-8"
-              style={{ background: band.bg }}
+    <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
+      {patients.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {patients.map((p, i) => (
+            <Link
+              key={p.id}
+              href={`/stats?patient=${p.id}`}
+              prefetch={i < 3 ? undefined : false}
+              className="chip"
+              data-active={p.id === selected.id}
             >
-              <div className="text-sm font-semibold text-[var(--muted-strong)]">
-                ציון 7 ימים אחרונים
-              </div>
-              <div
-                className="text-7xl font-black tracking-tight leading-none"
-                style={{ color: band.color }}
-              >
-                {score}
-              </div>
-              <div className="text-base font-bold" style={{ color: band.color }}>
-                {band.label}
-              </div>
-              <div className="text-lg text-center px-4 mt-1 font-medium">
-                {band.message}
-              </div>
-            </div>
+              {p.display_name}
+            </Link>
+          ))}
+        </div>
+      )}
 
-            <div className="grid grid-cols-3 gap-3">
-              <StatTile label="נלקחו" value={taken} color="var(--success, #16a34a)" />
-              <StatTile label="פוספסו" value={missed} color="var(--danger, #dc2626)" />
-              <StatTile label="דולגו" value={skipped} color="var(--muted)" />
+      {!hasData ? (
+        <div className="card text-center py-12">
+          <p className="text-lg font-semibold">אין עדיין מספיק נתונים</p>
+          <p className="text-[var(--muted)] mt-2">
+            ברגע שתסמן כדורים בלו״ז של 7 הימים האחרונים — הציון יופיע כאן.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div
+            className="card-elevated flex flex-col items-center gap-3 py-8"
+            style={{ background: band.bg }}
+          >
+            <div className="text-sm font-semibold text-[var(--muted-strong)]">
+              ציון 7 ימים אחרונים
             </div>
+            <div
+              className="text-7xl font-black tracking-tight leading-none"
+              style={{ color: band.color }}
+            >
+              {score}
+            </div>
+            <div className="text-base font-bold" style={{ color: band.color }}>
+              {band.label}
+            </div>
+            <div className="text-lg text-center px-4 mt-1 font-medium">
+              {band.message}
+            </div>
+          </div>
 
-            {streak > 0 && (
-              <div className="card flex items-center gap-3">
-                <span className="text-3xl" aria-hidden>
-                  🔥
-                </span>
-                <div>
-                  <div className="text-sm text-[var(--muted)] font-semibold">רצף מושלם</div>
-                  <div className="text-xl font-bold">
-                    {streak} {streak === 1 ? "יום" : "ימים"} ברצף עם 100%
-                  </div>
+          <div className="grid grid-cols-3 gap-3">
+            <StatTile label="נלקחו" value={taken} color="var(--success, #16a34a)" />
+            <StatTile label="פוספסו" value={missed} color="var(--danger, #dc2626)" />
+            <StatTile label="דולגו" value={skipped} color="var(--muted)" />
+          </div>
+
+          {streak > 0 && (
+            <div className="card flex items-center gap-3">
+              <span className="text-3xl" aria-hidden>
+                🔥
+              </span>
+              <div>
+                <div className="text-sm text-[var(--muted)] font-semibold">רצף מושלם</div>
+                <div className="text-xl font-bold">
+                  {streak} {streak === 1 ? "יום" : "ימים"} ברצף עם 100%
                 </div>
               </div>
-            )}
-          </>
-        )}
-      </div>
-    </main>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

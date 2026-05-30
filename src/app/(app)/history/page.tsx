@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -12,6 +13,7 @@ import {
 } from "@/lib/schedules/time-window";
 import { HistoryView } from "./history-view";
 import type { HistoryOccurrence } from "./occurrence-row";
+import { OccurrencesSkeleton } from "@/components/occurrences-skeleton";
 
 type View = "daily" | "weekly" | "monthly";
 type StatusKey = "taken" | "not_done" | "pending";
@@ -25,28 +27,37 @@ const STATUS_MAP: Record<StatusKey, RawStatus[]> = {
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+type HistorySearch = {
+  patient?: string;
+  view?: string;
+  date?: string;
+  kinds?: string;
+  statuses?: string;
+  q?: string;
+};
+
 export default async function HistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    patient?: string;
-    view?: string;
-    date?: string;
-    kinds?: string;
-    statuses?: string;
-    q?: string;
-  }>;
+  searchParams: Promise<HistorySearch>;
 }) {
+  const sp = await searchParams;
+  return (
+    <main className="flex-1 flex flex-col pb-28">
+      <AppHeader title="היסטוריה" />
+      <Suspense fallback={<OccurrencesSkeleton />}>
+        <HistoryBody sp={sp} />
+      </Suspense>
+    </main>
+  );
+}
+
+async function HistoryBody({ sp }: { sp: HistorySearch }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
   const patients = await getAccessiblePatients();
   if (patients.length === 0) redirect("/today");
 
-  const sp = await searchParams;
   const view: View =
     sp.view === "daily" || sp.view === "weekly" || sp.view === "monthly"
       ? sp.view
@@ -69,10 +80,10 @@ export default async function HistoryPage({
   const win =
     view === "daily" ? dayWindow(date) : view === "weekly" ? weekWindow(date) : monthWindow(date);
 
-  const { data: rows } = await supabase
+  let query = supabase
     .from("schedule_occurrences")
     .select(
-      "id, due_at, status, taken_at, taken_by_profile_id, measurement_values, notes, schedule:schedules(id, title, kind, dose_text, measurement_unit, measurement_value_count)",
+      "id, due_at, status, taken_at, taken_by_profile_id, measurement_values, notes, schedule:schedules!inner(id, title, kind, dose_text, measurement_unit, measurement_value_count)",
     )
     .eq("patient_id", selectedId)
     .gte("due_at", win.fromUtc.toISOString())
@@ -80,59 +91,52 @@ export default async function HistoryPage({
     .order("due_at", { ascending: true })
     .limit(500);
 
+  if (statuses.length > 0) {
+    const flat = statuses.flatMap((s) => STATUS_MAP[s]);
+    query = query.in("status", flat);
+  }
+  if (kinds.length > 0) {
+    query = query.in("schedule.kind", kinds);
+  }
+  if (q.length > 0) {
+    query = query.ilike("schedule.title", `%${q}%`);
+  }
+
+  const { data: rows } = await query;
+
   const normalized: HistoryOccurrence[] = (rows ?? []).map((r) => ({
     ...r,
     schedule: Array.isArray(r.schedule) ? r.schedule[0] ?? null : r.schedule,
   }));
 
-  // Apply JS-side filters (kind / status / search).
-  const allowedStatuses = new Set<RawStatus>(
-    statuses.length === 0
-      ? (["taken", "skipped", "missed", "pending"] as RawStatus[])
-      : statuses.flatMap((s) => STATUS_MAP[s]),
-  );
-  const qLower = q.toLowerCase();
-  const filtered = normalized.filter((o) => {
-    if (!allowedStatuses.has(o.status)) return false;
-    const k = (o.schedule?.kind ?? "") as Kind;
-    if (kinds.length > 0 && !kinds.includes(k)) return false;
-    if (qLower) {
-      const hay = `${o.schedule?.title ?? ""} ${o.schedule?.dose_text ?? ""}`.toLowerCase();
-      if (!hay.includes(qLower)) return false;
-    }
-    return true;
-  });
-
   return (
-    <main className="flex-1 flex flex-col pb-28">
-      <AppHeader title="היסטוריה" />
-      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
-        {patients.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-            {patients.map((p) => (
-              <Link
-                key={p.id}
-                href={buildHref({ ...sp, patient: p.id })}
-                className="chip"
-                data-active={p.id === selected.id}
-              >
-                {p.display_name}
-              </Link>
-            ))}
-          </div>
-        )}
+    <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
+      {patients.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {patients.map((p, i) => (
+            <Link
+              key={p.id}
+              href={buildHref({ ...sp, patient: p.id })}
+              prefetch={i < 3 ? undefined : false}
+              className="chip"
+              data-active={p.id === selected.id}
+            >
+              {p.display_name}
+            </Link>
+          ))}
+        </div>
+      )}
 
-        <HistoryView
-          occurrences={filtered}
-          view={view}
-          date={date}
-          rangeLabel={win.label}
-          kinds={kinds}
-          statuses={statuses}
-          q={q}
-        />
-      </div>
-    </main>
+      <HistoryView
+        occurrences={normalized}
+        view={view}
+        date={date}
+        rangeLabel={win.label}
+        kinds={kinds}
+        statuses={statuses}
+        q={q}
+      />
+    </div>
   );
 }
 

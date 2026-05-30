@@ -1,44 +1,54 @@
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAccessiblePatients } from "@/lib/schedules/access";
+import { currentUserId } from "@/lib/auth/current-user";
 import { AppHeader } from "@/components/app-header";
 import { TodayList } from "./today-list";
 import { dayWindow, todayYmd } from "@/lib/schedules/time-window";
+import { OccurrencesSkeleton } from "@/components/occurrences-skeleton";
 
 export default async function TodayPage({
   searchParams,
 }: {
   searchParams: Promise<{ patient?: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const sp = await searchParams;
+  return (
+    <main className="flex-1 flex flex-col pb-28">
+      <AppHeader title="היום" />
+      <Suspense fallback={<OccurrencesSkeleton />}>
+        <TodayBody patientParam={sp.patient} />
+      </Suspense>
+    </main>
+  );
+}
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+async function TodayBody({ patientParam }: { patientParam?: string }) {
+  const supabase = await createClient();
+  const uid = await currentUserId();
+
+  const [profileRes, patients] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", uid!).maybeSingle(),
+    getAccessiblePatients(),
+  ]);
+  const profile = profileRes.data;
 
   if (!profile) {
     return (
-      <main className="flex-1 flex items-center justify-center p-6 text-center">
+      <div className="flex-1 flex items-center justify-center p-6 text-center">
         <div className="card max-w-md space-y-4">
           <h1 className="text-2xl font-bold">החשבון לא מוכן</h1>
           <p>נראה שהשלמת ההרשמה לא הסתיימה.</p>
           <Link href="/signup" className="btn-primary">השלמת הרשמה</Link>
         </div>
-      </main>
+      </div>
     );
   }
 
-  const patients = await getAccessiblePatients();
   if (patients.length === 0) {
     return (
-      <main className="flex-1 flex items-center justify-center p-6 text-center">
+      <div className="flex-1 flex items-center justify-center p-6 text-center">
         <div className="card max-w-md space-y-4">
           <h1 className="text-2xl font-bold">אין עדיין מטופל מקושר</h1>
           {profile.role_type === "family" ? (
@@ -50,14 +60,13 @@ export default async function TodayPage({
             <p>נראה שהחשבון שלך לא הושלם. נסה להירשם מחדש.</p>
           )}
         </div>
-      </main>
+      </div>
     );
   }
 
-  const sp = await searchParams;
   const selectedId =
-    sp.patient && patients.some((p) => p.id === sp.patient)
-      ? sp.patient!
+    patientParam && patients.some((p) => p.id === patientParam)
+      ? patientParam
       : patients[0].id;
   const selected = patients.find((p) => p.id === selectedId)!;
 
@@ -72,35 +81,32 @@ export default async function TodayPage({
     .order("due_at", { ascending: true });
 
   return (
-    <main className="flex-1 flex flex-col pb-28">
-      <AppHeader title="היום" />
-      <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
-        {patients.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-            {patients.map((p) => (
-              <Link
-                key={p.id}
-                href={`/today?patient=${p.id}`}
-                className="chip"
-                data-active={p.id === selected.id}
-              >
-                {p.display_name}
-              </Link>
-            ))}
-          </div>
-        )}
+    <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
+      {patients.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {patients.map((p, i) => (
+            <Link
+              key={p.id}
+              href={`/today?patient=${p.id}`}
+              prefetch={i < 3 ? undefined : false}
+              className="chip"
+              data-active={p.id === selected.id}
+            >
+              {p.display_name}
+            </Link>
+          ))}
+        </div>
+      )}
 
-        <TodayList
-          occurrences={(occurrences ?? []).map((o) => ({
-            ...o,
-            schedule: Array.isArray(o.schedule) ? o.schedule[0] ?? null : o.schedule,
-          }))}
-          patientId={selected.id}
-          canEdit={selected.role !== "viewer"}
-          isSelf={selected.is_self}
-        />
-      </div>
-    </main>
+      <TodayList
+        occurrences={(occurrences ?? []).map((o) => ({
+          ...o,
+          schedule: Array.isArray(o.schedule) ? o.schedule[0] ?? null : o.schedule,
+        }))}
+        patientId={selected.id}
+        canEdit={selected.role !== "viewer"}
+        isSelf={selected.is_self}
+      />
+    </div>
   );
 }
-
