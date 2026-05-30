@@ -8,7 +8,7 @@ const TABS = [
   { href: "/tomorrow", label: "מחר", icon: "📅" },
   { href: "/schedules", label: "לו״ז", icon: "📋" },
   { href: "/history", label: "היסטוריה", icon: "📊" },
-  { href: "/family", label: "משפחה", icon: "👨‍👩‍👧" },
+  { href: "/stats", label: "סטטיסטיקה", icon: "📈" },
   { href: "/settings", label: "הגדרות", icon: "⚙️" },
 ];
 

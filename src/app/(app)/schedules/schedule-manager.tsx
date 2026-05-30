@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { KIND_LABEL, KIND_EMOJI, ALL_KINDS } from "@/lib/schedules/kind-labels";
+import { KIND_LABEL, KIND_EMOJI, ALL_KINDS, type Kind } from "@/lib/schedules/kind-labels";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
 const DAYS_SHORT = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
@@ -25,6 +25,7 @@ type Schedule = {
   measurement_unit: string | null;
   measurement_value_count: number;
   notes: string | null;
+  location: string | null;
   active: boolean;
   pattern: {
     freq: "once" | "daily" | "weekly" | "custom" | "interval";
@@ -52,8 +53,76 @@ export function ScheduleManager({
   const [editing, setEditing] = useState<Schedule | null>(null);
   const router = useRouter();
 
+  const [search, setSearch] = useState("");
+  const [kindFilter, setKindFilter] = useState<Kind | "all">("all");
+  const [hideExpiredOnce, setHideExpiredOnce] = useState(true);
+
+  const filtered = useMemo(() => {
+    const today = todayYmdLocal();
+    const q = search.trim().toLowerCase();
+    return schedules.filter((s) => {
+      if (kindFilter !== "all" && s.kind !== kindFilter) return false;
+      if (
+        hideExpiredOnce &&
+        s.pattern.freq === "once" &&
+        s.pattern.anchor_date &&
+        s.pattern.anchor_date < today
+      ) {
+        return false;
+      }
+      if (q) {
+        const hay = [s.title, s.dose_text, s.notes, s.location]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [schedules, search, kindFilter, hideExpiredOnce]);
+
   return (
     <>
+      <div className="card flex flex-col gap-3">
+        <input
+          className="input"
+          placeholder="חיפוש לפי שם / פרטים / מקום"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="flex gap-2 flex-wrap">
+          <button
+            type="button"
+            className="chip"
+            data-active={kindFilter === "all"}
+            onClick={() => setKindFilter("all")}
+          >
+            הכל
+          </button>
+          {ALL_KINDS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              className="chip"
+              data-active={kindFilter === k}
+              onClick={() => setKindFilter(k)}
+            >
+              <span aria-hidden>{KIND_EMOJI[k]}</span>
+              <span>{KIND_LABEL[k]}</span>
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-base cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={hideExpiredOnce}
+            onChange={(e) => setHideExpiredOnce(e.target.checked)}
+            className="size-5"
+          />
+          <span>הסתר אירועים חד-פעמיים שעברו</span>
+        </label>
+      </div>
+
       {canEdit && (
         <button
           type="button"
@@ -63,17 +132,19 @@ export function ScheduleManager({
             setOpen(true);
           }}
         >
-          + הוספת תזכורת חדשה
+          + הוספת אירוע חדש
         </button>
       )}
 
-      {schedules.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="card text-center py-12 text-[var(--muted)]">
-          <p className="text-lg">אין תזכורות עדיין.</p>
+          <p className="text-lg">
+            {schedules.length === 0 ? "אין אירועים עדיין." : "אין תוצאות לסינון."}
+          </p>
         </div>
       ) : (
         <ul className="flex flex-col gap-3">
-          {schedules.map((s) => (
+          {filtered.map((s) => (
             <li key={s.id} className={`card-elevated ${!s.active ? "opacity-60" : ""}`}>
               <div className="flex items-start gap-3">
                 <div
@@ -90,6 +161,11 @@ export function ScheduleManager({
                   {s.dose_text && (
                     <div className="text-base text-[var(--muted)] mt-0.5 break-words">
                       {s.dose_text}
+                    </div>
+                  )}
+                  {s.location && (
+                    <div className="text-base text-[var(--muted)] mt-0.5 break-words">
+                      📍 {s.location}
                     </div>
                   )}
                   <div className="text-[15px] mt-2 text-[var(--muted-strong)]">
@@ -210,8 +286,9 @@ function ScheduleDialog({
   const [dose, setDose] = useState(schedule?.dose_text ?? "");
   const [unit, setUnit] = useState(schedule?.measurement_unit ?? "");
   const [valueCount, setValueCount] = useState(schedule?.measurement_value_count ?? 0);
+  const [location, setLocation] = useState(schedule?.location ?? "");
   const [freq, setFreq] = useState<"once" | "daily" | "weekly" | "custom" | "interval">(
-    schedule?.pattern.freq ?? "daily",
+    schedule?.pattern.freq ?? (schedule?.kind === "event" ? "once" : "daily"),
   );
   const [days, setDays] = useState<number[]>(
     schedule?.pattern.days_of_week ?? [0, 1, 2, 3, 4, 5, 6],
@@ -229,6 +306,16 @@ function ScheduleDialog({
   const [error, setError] = useState<string | null>(null);
 
   const isMeasurement = kind === "measurement";
+  const isEvent = kind === "event";
+
+  function handleKindChange(k: string) {
+    setKind(k);
+    if (k === "measurement" && valueCount === 0) setValueCount(1);
+    if (k === "event") {
+      setFreq("once");
+      if (!schedule?.pattern.anchor_date) setAnchorDate(todayYmdLocal());
+    }
+  }
 
   function slotTime(slot: Slot): string {
     return defaultTimes[slot];
@@ -253,14 +340,15 @@ function ScheduleDialog({
       setError("בחר תאריך");
       return;
     }
-    if (times.length === 0) {
+    if (!isEvent && times.length === 0) {
       setSaving(false);
       setError("יש לבחור לפחות שעה אחת");
       return;
     }
+    const effectiveTimes = times.length > 0 ? times : ["09:00"];
     const pattern: Schedule["pattern"] = {
       freq,
-      times,
+      times: effectiveTimes,
       ...(freq === "weekly" ? { days_of_week: days } : {}),
       ...(freq === "custom" ? { every_n_days: everyN } : {}),
       ...(freq === "interval"
@@ -275,6 +363,7 @@ function ScheduleDialog({
       dose_text: dose || null,
       measurement_unit: isMeasurement ? unit || null : null,
       measurement_value_count: isMeasurement ? valueCount : 0,
+      location: isEvent ? location || null : null,
       pattern,
     };
     const res = schedule
@@ -286,6 +375,7 @@ function ScheduleDialog({
             dose_text: body.dose_text,
             measurement_unit: body.measurement_unit,
             measurement_value_count: body.measurement_value_count,
+            location: body.location,
             pattern,
           }),
         })
@@ -309,7 +399,7 @@ function ScheduleDialog({
         <div className="sheet-handle" aria-hidden />
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-2xl font-bold">
-            {schedule ? "עריכת תזכורת" : "תזכורת חדשה"}
+            {schedule ? "עריכת אירוע" : "אירוע חדש"}
           </h3>
           <button onClick={onClose} className="btn-ghost" aria-label="סגירה">
             סגירה
@@ -324,10 +414,7 @@ function ScheduleDialog({
               <button
                 key={k}
                 type="button"
-                onClick={() => {
-                  setKind(k);
-                  if (k === "measurement" && valueCount === 0) setValueCount(1);
-                }}
+                onClick={() => handleKindChange(k)}
                 className="chip"
                 data-active={kind === k}
               >
@@ -346,18 +433,31 @@ function ScheduleDialog({
               className="input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder='למשל "אקמול" / "לחץ דם"'
+              placeholder='למשל "אקמול" / "לחץ דם" / "פגישה עם הרופא"'
             />
           </div>
-          <div>
-            <label className="label">מינון / פירוט (לא חובה)</label>
-            <input
-              className="input"
-              value={dose}
-              onChange={(e) => setDose(e.target.value)}
-              placeholder="למשל: 1 כדור, 10 דקות"
-            />
-          </div>
+          {!isEvent && (
+            <div>
+              <label className="label">מינון / פירוט (לא חובה)</label>
+              <input
+                className="input"
+                value={dose}
+                onChange={(e) => setDose(e.target.value)}
+                placeholder="למשל: 1 כדור, 10 דקות"
+              />
+            </div>
+          )}
+          {isEvent && (
+            <div>
+              <label className="label">מקום / כתובת (לא חובה)</label>
+              <input
+                className="input"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="לדוגמה: קופ״ח כללית, רחוב הרצל 12"
+              />
+            </div>
+          )}
         </div>
 
         {isMeasurement && (
@@ -427,7 +527,7 @@ function ScheduleDialog({
                 onChange={(e) => setAnchorDate(e.target.value)}
               />
               <p className="text-sm text-[var(--muted)] mt-2">
-                תזכורת תופיע פעם אחת בלבד בתאריך ובשעות שתבחר.
+                התזכורת תופיע פעם אחת בלבד בתאריך {isEvent ? "ובשעה (אם הוגדרה)" : "ובשעות שתבחר"}.
               </p>
             </div>
           )}
@@ -523,7 +623,9 @@ function ScheduleDialog({
 
         {/* Times */}
         <div className="subcard">
-          <label className="label">חלקי היום</label>
+          <label className="label">
+            {isEvent ? "שעה (לא חובה)" : "חלקי היום"}
+          </label>
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
@@ -569,15 +671,13 @@ function ScheduleDialog({
                     setTimes(next);
                   }}
                 />
-                {times.length > 1 && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setTimes(times.filter((_, idx) => idx !== i))}
-                  >
-                    הסר
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setTimes(times.filter((_, idx) => idx !== i))}
+                >
+                  הסר
+                </button>
               </div>
             ))}
             <button
@@ -589,7 +689,9 @@ function ScheduleDialog({
             </button>
           </div>
           <p className="text-sm text-[var(--muted)]">
-            שינוי השעה ידנית מבטל את הצמדתה לחלק היום, ושומר את הערך הספציפי לתזכורת הזו בלבד.
+            {isEvent
+              ? "אירוע יכול להיות בלי שעה ספציפית. אם תוסיף שעה, היא תופיע בלו״ז של אותו יום."
+              : "שינוי השעה ידנית מבטל את הצמדתה לחלק היום, ושומר את הערך הספציפי לתזכורת הזו בלבד."}
           </p>
         </div>
 
@@ -603,7 +705,7 @@ function ScheduleDialog({
           <button
             type="button"
             className="btn-primary flex-1"
-            disabled={saving || !title.trim() || times.length === 0}
+            disabled={saving || !title.trim() || (!isEvent && times.length === 0)}
             onClick={save}
           >
             {saving ? "שומר..." : "שמירה"}

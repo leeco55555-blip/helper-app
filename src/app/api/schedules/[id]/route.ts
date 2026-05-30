@@ -11,6 +11,7 @@ const Update = z.object({
   measurement_unit: z.string().nullable().optional(),
   measurement_value_count: z.number().int().min(0).max(4).optional(),
   notes: z.string().nullable().optional(),
+  location: z.string().nullable().optional(),
   pattern: PatternSchema.optional(),
   active: z.boolean().optional(),
 });

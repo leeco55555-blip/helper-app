@@ -7,12 +7,13 @@ import { getPatientRole, roleAtLeast } from "@/lib/schedules/access";
 
 const Create = z.object({
   patient_id: z.string().uuid(),
-  kind: z.enum(["medication", "measurement", "exam", "workout"]),
+  kind: z.enum(["medication", "measurement", "exam", "workout", "event"]),
   title: z.string().min(1),
   dose_text: z.string().optional().nullable(),
   measurement_unit: z.string().optional().nullable(),
   measurement_value_count: z.number().int().min(0).max(4).default(0),
   notes: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
   pattern: PatternSchema,
 });
 
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
       measurement_unit: body.measurement_unit ?? null,
       measurement_value_count: body.measurement_value_count,
       notes: body.notes ?? null,
+      location: body.location ?? null,
       pattern: body.pattern,
       created_by: user.id,
     })

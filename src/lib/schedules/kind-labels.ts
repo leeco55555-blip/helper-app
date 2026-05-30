@@ -1,10 +1,11 @@
-export type Kind = "medication" | "measurement" | "exam" | "workout";
+export type Kind = "medication" | "measurement" | "exam" | "workout" | "event";
 
 export const KIND_LABEL: Record<Kind, string> = {
   medication: "תרופה",
   measurement: "בדיקה ביתית",
   exam: "בדיקה רפואית",
   workout: "אימון",
+  event: "אירוע",
 };
 
 export const KIND_EMOJI: Record<Kind, string> = {
@@ -12,9 +13,10 @@ export const KIND_EMOJI: Record<Kind, string> = {
   measurement: "🩺",
   exam: "🧪",
   workout: "🏃",
+  event: "📌",
 };
 
-export const ALL_KINDS: Kind[] = ["medication", "measurement", "exam", "workout"];
+export const ALL_KINDS: Kind[] = ["medication", "measurement", "exam", "workout", "event"];
 
 export function labelOf(k: string): string {
   return KIND_LABEL[k as Kind] ?? k;

@@ -90,16 +90,6 @@ export default async function TomorrowPage({
           </div>
         )}
 
-        <div className="card flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[var(--muted)] text-sm font-semibold">הלו״ז של מחר עבור:</p>
-            <p className="text-xl font-bold truncate">{selected.display_name}</p>
-          </div>
-          <Link href={`/schedules?patient=${selected.id}`} className="btn-secondary shrink-0">
-            ניהול לו״ז
-          </Link>
-        </div>
-
         <TodayList
           occurrences={(occurrences ?? []).map((o) => ({
             ...o,

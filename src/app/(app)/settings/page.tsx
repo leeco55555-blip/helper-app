@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AppHeader } from "@/components/app-header";
 import { ChangePasswordForm } from "./change-password-form";
 import { DefaultTimesForm } from "./default-times-form";
+import { FamilySection } from "./family-section";
 
 type DefaultTimes = { morning: string; noon: string; evening: string };
 
@@ -22,7 +23,11 @@ function parseDefaultTimes(raw: unknown): DefaultTimes {
   return FALLBACK;
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ patient?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,6 +41,7 @@ export default async function SettingsPage() {
     .maybeSingle();
 
   const defaultTimes = parseDefaultTimes(profile?.default_times);
+  const sp = await searchParams;
 
   return (
     <main className="flex-1 flex flex-col pb-28">
@@ -53,6 +59,8 @@ export default async function SettingsPage() {
         <DefaultTimesForm initial={defaultTimes} />
 
         <ChangePasswordForm />
+
+        <FamilySection userId={user.id} selectedPatientParam={sp.patient} />
       </div>
     </main>
   );
