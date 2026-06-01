@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAccessiblePatients } from "@/lib/schedules/access";
 import { currentUserId } from "@/lib/auth/current-user";
 import { AppHeader } from "@/components/app-header";
@@ -63,6 +63,7 @@ async function SchedulesBody({ patientParam }: { patientParam?: string }) {
   ]);
 
   const defaultTimes = parseDefaultTimes(profile?.default_times);
+  const members = await loadMembers(selectedId, uid!);
 
   return (
     <div className="max-w-2xl mx-auto w-full px-4 pt-2 flex flex-col gap-4">
@@ -87,7 +88,43 @@ async function SchedulesBody({ patientParam }: { patientParam?: string }) {
         schedules={schedules ?? []}
         canEdit={canEdit}
         defaultTimes={defaultTimes}
+        members={members}
       />
     </div>
   );
+}
+
+/**
+ * Other members linked to the patient, with emails resolved from auth.users
+ * (emails live there, not in `profiles`). Used to pre-fill calendar guests.
+ * Excludes the current user and anyone without an email.
+ */
+async function loadMembers(
+  patientId: string,
+  currentUserId: string,
+): Promise<{ name: string; email: string }[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("patient_members")
+    .select(
+      "member:profiles!patient_members_member_profile_id_fkey(id, full_name)",
+    )
+    .eq("patient_id", patientId);
+
+  const others = (data ?? [])
+    .map((row) => row.member as unknown as { id: string; full_name: string | null } | null)
+    .filter((m): m is { id: string; full_name: string | null } => !!m && m.id !== currentUserId);
+  if (others.length === 0) return [];
+
+  const svc = createServiceClient();
+  const resolved = await Promise.all(
+    others.map(async (m) => {
+      const { data: u } = await svc.auth.admin.getUserById(m.id);
+      const email = u.user?.email;
+      if (!email) return null;
+      return { name: m.full_name ?? email, email };
+    }),
+  );
+
+  return resolved.filter((m): m is { name: string; email: string } => m !== null);
 }

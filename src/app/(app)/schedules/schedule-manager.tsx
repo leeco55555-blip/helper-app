@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { KIND_LABEL, KIND_EMOJI, ALL_KINDS, type Kind } from "@/lib/schedules/kind-labels";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { AddToCalendarButton } from "@/components/add-to-calendar-button";
+import type { CalendarGuest } from "@/lib/calendar/ics";
 
 const DAYS_SHORT = ["א", "ב", "ג", "ד", "ה", "ו", "ש"];
 const DAYS_FULL = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
@@ -35,6 +37,8 @@ type Schedule = {
     interval_unit?: "days" | "months" | "years";
     interval_n?: number;
     anchor_date?: string;
+    starts_on?: string;
+    ends_on?: string;
   };
 };
 
@@ -43,11 +47,13 @@ export function ScheduleManager({
   schedules,
   canEdit,
   defaultTimes,
+  members = [],
 }: {
   patientId: string;
   schedules: Schedule[];
   canEdit: boolean;
   defaultTimes: DefaultTimes;
+  members?: CalendarGuest[];
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Schedule | null>(null);
@@ -173,18 +179,34 @@ export function ScheduleManager({
                   </div>
                 </div>
               </div>
-              {canEdit && (
+              {(canEdit || s.kind === "event") && (
                 <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--border)]">
-                  <button
-                    className="btn-ghost flex-1"
-                    onClick={() => {
-                      setEditing(s);
-                      setOpen(true);
-                    }}
-                  >
-                    עריכה
-                  </button>
-                  <DeleteButton id={s.id} onDone={() => router.refresh()} />
+                  {s.kind === "event" && (
+                    <AddToCalendarButton
+                      event={{
+                        title: s.title,
+                        location: s.location,
+                        notes: s.notes,
+                        pattern: s.pattern,
+                        uid: s.id,
+                      }}
+                      members={members}
+                    />
+                  )}
+                  {canEdit && (
+                    <>
+                      <button
+                        className="btn-ghost flex-1"
+                        onClick={() => {
+                          setEditing(s);
+                          setOpen(true);
+                        }}
+                      >
+                        עריכה
+                      </button>
+                      <DeleteButton id={s.id} onDone={() => router.refresh()} />
+                    </>
+                  )}
                 </div>
               )}
             </li>
@@ -197,6 +219,7 @@ export function ScheduleManager({
           patientId={patientId}
           schedule={editing}
           defaultTimes={defaultTimes}
+          members={members}
           onClose={() => setOpen(false)}
           onSaved={() => {
             setOpen(false);
@@ -272,12 +295,14 @@ function ScheduleDialog({
   patientId,
   schedule,
   defaultTimes,
+  members = [],
   onClose,
   onSaved,
 }: {
   patientId: string;
   schedule: Schedule | null;
   defaultTimes: DefaultTimes;
+  members?: CalendarGuest[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -332,6 +357,22 @@ function ScheduleDialog({
     }
   }
 
+  // Build the pattern from current form state. `forCalendar` keeps the raw
+  // `times` (possibly empty → all-day event) instead of the saved ["09:00"] fallback.
+  function buildPattern(forCalendar = false): Schedule["pattern"] {
+    const effectiveTimes = forCalendar ? times : times.length > 0 ? times : ["09:00"];
+    return {
+      freq,
+      times: effectiveTimes,
+      ...(freq === "weekly" ? { days_of_week: days } : {}),
+      ...(freq === "custom" ? { every_n_days: everyN } : {}),
+      ...(freq === "interval"
+        ? { interval_unit: intervalUnit, interval_n: intervalN, anchor_date: anchorDate }
+        : {}),
+      ...(freq === "once" ? { anchor_date: anchorDate } : {}),
+    };
+  }
+
   async function save() {
     setSaving(true);
     setError(null);
@@ -345,17 +386,7 @@ function ScheduleDialog({
       setError("יש לבחור לפחות שעה אחת");
       return;
     }
-    const effectiveTimes = times.length > 0 ? times : ["09:00"];
-    const pattern: Schedule["pattern"] = {
-      freq,
-      times: effectiveTimes,
-      ...(freq === "weekly" ? { days_of_week: days } : {}),
-      ...(freq === "custom" ? { every_n_days: everyN } : {}),
-      ...(freq === "interval"
-        ? { interval_unit: intervalUnit, interval_n: intervalN, anchor_date: anchorDate }
-        : {}),
-      ...(freq === "once" ? { anchor_date: anchorDate } : {}),
-    };
+    const pattern = buildPattern();
     const body = {
       patient_id: patientId,
       kind,
@@ -698,6 +729,25 @@ function ScheduleDialog({
         {error && (
           <div className="rounded-2xl bg-[var(--danger-soft)] text-[var(--danger)] px-4 py-3 font-medium">
             {error}
+          </div>
+        )}
+
+        {isEvent && title.trim() && (freq !== "once" || anchorDate) && (
+          <div className="flex flex-col gap-1">
+            <AddToCalendarButton
+              event={{
+                title,
+                location: location || null,
+                notes: null,
+                pattern: buildPattern(true),
+                uid: schedule?.id,
+              }}
+              members={members}
+              className="btn-secondary w-full"
+            />
+            <p className="text-sm text-[var(--muted)] text-center">
+              אפשר להוסיף ליומן הטלפון גם לפני שמירה.
+            </p>
           </div>
         )}
 
