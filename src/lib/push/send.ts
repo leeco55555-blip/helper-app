@@ -42,6 +42,7 @@ export async function sendPushToProfile(profileId: string, payload: PushPayload)
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           json,
+          { urgency: "high", TTL: 600 },
         );
         sent++;
         await svc.from("push_subscriptions").update({ last_used_at: new Date().toISOString() }).eq("id", s.id);
