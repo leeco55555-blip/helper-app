@@ -85,14 +85,53 @@ async function run() {
     });
   }
 
-  // Mark missed occurrences (older than 60min, still pending)
+  // Mark missed occurrences (older than 60min, still pending) and notify ONCE.
+  // The status flip is the dedup: rows returned here just left "pending", so the
+  // next run's `status=pending` filter won't re-select them — no repeat alerts.
   const missedCutoff = subMinutes(now, 60).toISOString();
   const { data: missed } = await svc
     .from("schedule_occurrences")
     .update({ status: "missed" })
     .lt("due_at", missedCutoff)
     .eq("status", "pending")
-    .select("id");
+    .select("id, patient_id, schedule:schedules(title, dose_text), patient:patients(profile_id, display_name)");
+
+  for (const occ of missed ?? []) {
+    const pat = occ.patient as unknown as { profile_id: string; display_name: string } | null;
+    const sched = occ.schedule as unknown as { title: string; dose_text: string | null } | null;
+    if (!pat || !sched) continue;
+
+    const missedBody = sched.dose_text ? `${sched.dose_text} · לא סומן כבוצע` : "לא סומן כבוצע";
+    const r = await sendPushToProfile(pat.profile_id, {
+      title: `⏰ פוספס — ${sched.title}`,
+      body: missedBody,
+      occurrence_id: occ.id,
+      url: "/today",
+    });
+
+    // Notify family members who opted in
+    const { data: members } = await svc
+      .from("patient_members")
+      .select("member_profile_id")
+      .eq("patient_id", occ.patient_id)
+      .eq("receive_reminders", true);
+    for (const m of members ?? []) {
+      await sendPushToProfile(m.member_profile_id, {
+        title: `⏰ פוספס — ${sched.title} (${pat.display_name})`,
+        body: missedBody,
+        occurrence_id: occ.id,
+        url: `/today?patient=${occ.patient_id}`,
+      });
+    }
+
+    await svc.from("notification_log").insert({
+      profile_id: pat.profile_id,
+      occurrence_id: occ.id,
+      trigger_source: "cron_missed",
+      payload: { title: sched.title, body: missedBody },
+      success: r.sent > 0,
+    });
+  }
 
   // Daily window extension (cheap to run every minute thanks to upsert dedupe)
   // Limit to once every minute by checking minute %15 == 0 → reduce DB churn.
