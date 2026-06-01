@@ -11,14 +11,34 @@ export async function loadPatientMembers(
   currentUserId: string,
 ): Promise<CalendarGuest[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("patient_members")
-    .select("member:profiles!patient_members_member_profile_id_fkey(id, full_name)")
-    .eq("patient_id", patientId);
+  const [patientRes, membersRes] = await Promise.all([
+    // The patient's own profile (owner) — not stored in patient_members.
+    supabase
+      .from("patients")
+      .select("owner:profiles!patients_profile_id_fkey(id, full_name)")
+      .eq("id", patientId)
+      .maybeSingle(),
+    supabase
+      .from("patient_members")
+      .select("member:profiles!patient_members_member_profile_id_fkey(id, full_name)")
+      .eq("patient_id", patientId),
+  ]);
 
-  const others = (data ?? [])
-    .map((row) => row.member as unknown as { id: string; full_name: string | null } | null)
-    .filter((m): m is { id: string; full_name: string | null } => !!m && m.id !== currentUserId);
+  type Profile = { id: string; full_name: string | null };
+  const candidates: Profile[] = [];
+  const owner = patientRes.data?.owner as unknown as Profile | null;
+  if (owner) candidates.push(owner);
+  for (const row of membersRes.data ?? []) {
+    const m = row.member as unknown as Profile | null;
+    if (m) candidates.push(m);
+  }
+
+  // De-duplicate by id and drop the current user (no point inviting yourself).
+  const byId = new Map<string, Profile>();
+  for (const p of candidates) {
+    if (p.id !== currentUserId) byId.set(p.id, p);
+  }
+  const others = [...byId.values()];
   if (others.length === 0) return [];
 
   const svc = createServiceClient();
