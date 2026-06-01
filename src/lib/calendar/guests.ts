@@ -2,14 +2,11 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import type { CalendarGuest } from "@/lib/calendar/ics";
 
 /**
- * Other members linked to the patient, with emails resolved from auth.users
- * (emails live there, not in `profiles`). Excludes the current user and anyone
- * without an email. Used to populate the calendar guest picker.
+ * Everyone linked to the patient — the patient (owner) plus all family members —
+ * with emails resolved from auth.users (emails live there, not in `profiles`).
+ * Anyone without an email is dropped. Used to populate the calendar guest picker.
  */
-export async function loadPatientMembers(
-  patientId: string,
-  currentUserId: string,
-): Promise<CalendarGuest[]> {
+export async function loadPatientMembers(patientId: string): Promise<CalendarGuest[]> {
   const supabase = await createClient();
   const [patientRes, membersRes] = await Promise.all([
     // The patient's own profile (owner) — not stored in patient_members.
@@ -33,11 +30,9 @@ export async function loadPatientMembers(
     if (m) candidates.push(m);
   }
 
-  // De-duplicate by id and drop the current user (no point inviting yourself).
+  // De-duplicate by id (owner may also appear as a member).
   const byId = new Map<string, Profile>();
-  for (const p of candidates) {
-    if (p.id !== currentUserId) byId.set(p.id, p);
-  }
+  for (const p of candidates) byId.set(p.id, p);
   const others = [...byId.values()];
   if (others.length === 0) return [];
 

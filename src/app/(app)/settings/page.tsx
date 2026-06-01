@@ -78,7 +78,7 @@ async function SettingsBody({ patientParam }: { patientParam?: string }) {
 
       <FamilySection userId={uid} selectedPatientParam={patientParam} />
 
-      <DefaultGuestsSection userId={uid} selectedPatientParam={patientParam} />
+      <DefaultGuestsSection selectedPatientParam={patientParam} />
     </div>
   );
 }

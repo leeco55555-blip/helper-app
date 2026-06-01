@@ -149,7 +149,15 @@ function resolveStart(pattern: Pattern): { start: Date; end: Date; allDay: boole
 
   if (time) {
     const start = fromZonedTime(`${startYmd}T${time}:00`, TZ);
-    return { start, end: new Date(start.getTime() + DEFAULT_DURATION_MS), allDay: false };
+    let end = start;
+    if (pattern.end_time) {
+      end = fromZonedTime(`${startYmd}T${pattern.end_time}:00`, TZ);
+      // End at/before start means the event runs past midnight: roll to next day.
+      if (end <= start) end = fromZonedTime(`${addDaysYmd(startYmd, 1)}T${pattern.end_time}:00`, TZ);
+    } else {
+      end = new Date(start.getTime() + DEFAULT_DURATION_MS);
+    }
+    return { start, end, allDay: false };
   }
 
   // All-day: DTEND is exclusive, so it points at the next calendar day.
@@ -162,6 +170,13 @@ function resolveStart(pattern: Pattern): { start: Date; end: Date; allDay: boole
 function parseUtcDate(ymd: string): Date {
   const [y, m, d] = ymd.split("-").map(Number);
   return new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1));
+}
+
+/** Add `n` calendar days to a YYYY-MM-DD string, returning a YYYY-MM-DD string. */
+function addDaysYmd(ymd: string, n: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, (m ?? 1) - 1, (d ?? 1) + n));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
 /** Basic UTC timestamp: YYYYMMDDTHHMMSSZ */

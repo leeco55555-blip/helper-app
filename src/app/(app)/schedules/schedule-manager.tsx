@@ -33,6 +33,7 @@ type Schedule = {
     freq: "once" | "daily" | "weekly" | "custom" | "interval";
     days_of_week?: number[];
     times: string[];
+    end_time?: string;
     every_n_days?: number;
     interval_unit?: "days" | "months" | "years";
     interval_n?: number;
@@ -333,6 +334,11 @@ function ScheduleDialog({
     schedule?.pattern.anchor_date ?? todayYmdLocal(),
   );
   const [times, setTimes] = useState<string[]>(schedule?.pattern.times ?? [defaultTimes.morning]);
+  // Event end time. Defaults to one hour after the start; user can override.
+  const [endTime, setEndTime] = useState<string>(
+    schedule?.pattern.end_time ?? addOneHour(schedule?.pattern.times?.[0] ?? defaultTimes.morning),
+  );
+  const [endTouched, setEndTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -363,6 +369,21 @@ function ScheduleDialog({
     }
   }
 
+  // For events, times[0] is the start time; an empty array means an all-day event.
+  const eventStart = times[0] ?? "";
+  function setEventStart(v: string) {
+    if (!v) {
+      setTimes([]);
+      return;
+    }
+    setTimes([v]);
+    if (!endTouched) setEndTime(addOneHour(v));
+  }
+  function setEventEnd(v: string) {
+    setEndTouched(true);
+    setEndTime(v);
+  }
+
   // Build the pattern from current form state. `forCalendar` keeps the raw
   // `times` (possibly empty → all-day event) instead of the saved ["09:00"] fallback.
   function buildPattern(forCalendar = false): Schedule["pattern"] {
@@ -370,6 +391,8 @@ function ScheduleDialog({
     return {
       freq,
       times: effectiveTimes,
+      // End time is only meaningful for timed events; carries the calendar duration.
+      ...(isEvent && effectiveTimes.length > 0 && endTime ? { end_time: endTime } : {}),
       ...(freq === "weekly" ? { days_of_week: days } : {}),
       ...(freq === "custom" ? { every_n_days: everyN } : {}),
       ...(freq === "interval"
@@ -658,10 +681,53 @@ function ScheduleDialog({
           )}
         </div>
 
-        {/* Times */}
+        {/* Times — events use a start + end pair; everything else uses day-part slots */}
+        {isEvent ? (
+          <div className="subcard flex flex-col gap-3">
+            <label className="label">שעות האירוע (לא חובה)</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label">שעת התחלה</label>
+                <input
+                  type="time"
+                  className="input"
+                  dir="ltr"
+                  value={eventStart}
+                  onChange={(e) => setEventStart(e.target.value)}
+                />
+              </div>
+              {eventStart && (
+                <div>
+                  <label className="label">שעת סיום</label>
+                  <input
+                    type="time"
+                    className="input"
+                    dir="ltr"
+                    value={endTime}
+                    onChange={(e) => setEventEnd(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+            {eventStart && (
+              <button
+                type="button"
+                className="btn-ghost self-start"
+                onClick={() => setEventStart("")}
+              >
+                ללא שעה (אירוע של יום שלם)
+              </button>
+            )}
+            <p className="text-sm text-[var(--muted)]">
+              {eventStart
+                ? "ברירת המחדל לשעת הסיום היא שעה אחרי ההתחלה, וניתן לשנותה. כך האירוע ביומן יידע מתי הוא מתחיל ומתי הוא נגמר."
+                : "אירוע ללא שעה ייחשב כאירוע של יום שלם. הוסף שעת התחלה כדי לקבוע גם שעת סיום."}
+            </p>
+          </div>
+        ) : (
         <div className="subcard">
           <label className="label">
-            {isEvent ? "שעה (לא חובה)" : "חלקי היום"}
+            חלקי היום
           </label>
           <div className="flex gap-2 flex-wrap">
             <button
@@ -726,11 +792,10 @@ function ScheduleDialog({
             </button>
           </div>
           <p className="text-sm text-[var(--muted)]">
-            {isEvent
-              ? "אירוע יכול להיות בלי שעה ספציפית. אם תוסיף שעה, היא תופיע בלו״ז של אותו יום."
-              : "שינוי השעה ידנית מבטל את הצמדתה לחלק היום, ושומר את הערך הספציפי לתזכורת הזו בלבד."}
+            שינוי השעה ידנית מבטל את הצמדתה לחלק היום, ושומר את הערך הספציפי לתזכורת הזו בלבד.
           </p>
         </div>
+        )}
 
         {error && (
           <div className="rounded-2xl bg-[var(--danger-soft)] text-[var(--danger)] px-4 py-3 font-medium">
@@ -782,4 +847,11 @@ function todayYmdLocal(): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
+}
+
+/** Add one hour to an "HH:MM" string, wrapping past midnight. */
+function addOneHour(hhmm: string): string {
+  const [h, m] = (hhmm || "09:00").split(":").map(Number);
+  const next = ((h || 0) + 1) % 24;
+  return `${String(next).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`;
 }

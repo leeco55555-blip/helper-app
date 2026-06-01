@@ -6,6 +6,10 @@ export const PatternSchema = z.object({
   freq: z.enum(["once", "daily", "weekly", "custom", "interval"]),
   days_of_week: z.array(z.number().int().min(0).max(6)).optional(),
   times: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)).min(1),
+  // Event end time (HH:MM), paired with times[0] as the start. Only meaningful
+  // for "event" schedules; used to set the calendar event's duration. If the
+  // end is at or before the start it is treated as the next day (overnight).
+  end_time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
   every_n_days: z.number().int().min(1).optional(),
   // For freq === "interval": rolling intervals anchored to a known date.
   interval_unit: z.enum(["days", "months", "years"]).optional(),

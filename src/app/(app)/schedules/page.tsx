@@ -65,7 +65,7 @@ async function SchedulesBody({ patientParam }: { patientParam?: string }) {
 
   const defaultTimes = parseDefaultTimes(profile?.default_times);
   const [members, defaultGuests] = await Promise.all([
-    loadPatientMembers(selectedId, uid!),
+    loadPatientMembers(selectedId),
     loadDefaultGuests(selectedId),
   ]);
 

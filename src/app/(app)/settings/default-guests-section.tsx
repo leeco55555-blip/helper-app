@@ -4,10 +4,8 @@ import { loadPatientMembers, loadDefaultGuests } from "@/lib/calendar/guests";
 import { DefaultGuestsManager } from "./default-guests-manager";
 
 export async function DefaultGuestsSection({
-  userId,
   selectedPatientParam,
 }: {
-  userId: string;
   selectedPatientParam?: string;
 }) {
   const patients = await getAccessiblePatients();
@@ -21,7 +19,7 @@ export async function DefaultGuestsSection({
   const canEdit = selected.role !== "viewer";
 
   const [members, defaults] = await Promise.all([
-    loadPatientMembers(selectedId, userId),
+    loadPatientMembers(selectedId),
     loadDefaultGuests(selectedId),
   ]);
 
