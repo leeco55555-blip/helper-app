@@ -81,10 +81,7 @@ export function OccurrenceRow({ occ }: { occ: HistoryOccurrence }) {
     );
   }
 
-  const isPastUndone =
-    occ.status === "skipped" ||
-    occ.status === "missed" ||
-    (occ.status === "pending" && dueDate.getTime() < Date.now());
+  const isPastUndone = occ.status === "skipped" || occ.status === "missed";
 
   if (isPastUndone) {
     const label = occ.status === "skipped" ? "✗ לא בוצע" : "⏰ פוספס";
