@@ -5,17 +5,22 @@ import type { CalendarGuest } from "@/lib/calendar/ics";
  * Everyone linked to the patient — the patient (owner) plus all family members —
  * with emails resolved from auth.users (emails live there, not in `profiles`).
  * Anyone without an email is dropped. Used to populate the calendar guest picker.
+ *
+ * Uses the service client so RLS doesn't hide co-members: the `patient_members`
+ * select policy only exposes your OWN row unless you're the patient owner, which
+ * would otherwise drop other family members. Callers must already have gated
+ * access to this patient (via getAccessiblePatients).
  */
 export async function loadPatientMembers(patientId: string): Promise<CalendarGuest[]> {
-  const supabase = await createClient();
+  const svc = createServiceClient();
   const [patientRes, membersRes] = await Promise.all([
     // The patient's own profile (owner) — not stored in patient_members.
-    supabase
+    svc
       .from("patients")
       .select("owner:profiles!patients_profile_id_fkey(id, full_name)")
       .eq("id", patientId)
       .maybeSingle(),
-    supabase
+    svc
       .from("patient_members")
       .select("member:profiles!patient_members_member_profile_id_fkey(id, full_name)")
       .eq("patient_id", patientId),
@@ -36,7 +41,6 @@ export async function loadPatientMembers(patientId: string): Promise<CalendarGue
   const others = [...byId.values()];
   if (others.length === 0) return [];
 
-  const svc = createServiceClient();
   const resolved = await Promise.all(
     others.map(async (m) => {
       const { data: u } = await svc.auth.admin.getUserById(m.id);
