@@ -6,6 +6,7 @@ import { AppHeader } from "@/components/app-header";
 import { ChangePasswordForm } from "./change-password-form";
 import { DefaultTimesForm } from "./default-times-form";
 import { FamilySection } from "./family-section";
+import { DefaultGuestsSection } from "./default-guests-section";
 import { OccurrencesSkeleton } from "@/components/occurrences-skeleton";
 
 type DefaultTimes = { morning: string; noon: string; evening: string };
@@ -76,6 +77,8 @@ async function SettingsBody({ patientParam }: { patientParam?: string }) {
       <ChangePasswordForm />
 
       <FamilySection userId={uid} selectedPatientParam={patientParam} />
+
+      <DefaultGuestsSection userId={uid} selectedPatientParam={patientParam} />
     </div>
   );
 }

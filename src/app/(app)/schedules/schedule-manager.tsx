@@ -48,12 +48,14 @@ export function ScheduleManager({
   canEdit,
   defaultTimes,
   members = [],
+  defaultGuests = [],
 }: {
   patientId: string;
   schedules: Schedule[];
   canEdit: boolean;
   defaultTimes: DefaultTimes;
   members?: CalendarGuest[];
+  defaultGuests?: CalendarGuest[];
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Schedule | null>(null);
@@ -191,6 +193,7 @@ export function ScheduleManager({
                         uid: s.id,
                       }}
                       members={members}
+                      defaultGuests={defaultGuests}
                     />
                   )}
                   {canEdit && (
@@ -220,6 +223,7 @@ export function ScheduleManager({
           schedule={editing}
           defaultTimes={defaultTimes}
           members={members}
+          defaultGuests={defaultGuests}
           onClose={() => setOpen(false)}
           onSaved={() => {
             setOpen(false);
@@ -296,6 +300,7 @@ function ScheduleDialog({
   schedule,
   defaultTimes,
   members = [],
+  defaultGuests = [],
   onClose,
   onSaved,
 }: {
@@ -303,6 +308,7 @@ function ScheduleDialog({
   schedule: Schedule | null;
   defaultTimes: DefaultTimes;
   members?: CalendarGuest[];
+  defaultGuests?: CalendarGuest[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -743,6 +749,7 @@ function ScheduleDialog({
                 uid: schedule?.id,
               }}
               members={members}
+              defaultGuests={defaultGuests}
               className="btn-secondary w-full"
             />
             <p className="text-sm text-[var(--muted)] text-center">

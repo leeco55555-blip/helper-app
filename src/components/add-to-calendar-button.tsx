@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   buildGoogleCalendarUrl,
   buildIcsContent,
@@ -11,14 +11,31 @@ import {
 export function AddToCalendarButton({
   event,
   members,
+  defaultGuests,
   className = "btn-ghost flex-1",
 }: {
   event: Omit<CalendarEvent, "guests">;
   members?: CalendarGuest[];
+  defaultGuests?: CalendarGuest[];
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Union of linked members and saved default guests (external emails included),
+  // de-duplicated by email. Default guests keep the member's name when both exist.
+  const allGuests = useMemo<CalendarGuest[]>(() => {
+    const map = new Map<string, CalendarGuest>();
+    for (const m of members ?? []) map.set(m.email, m);
+    for (const g of defaultGuests ?? []) if (!map.has(g.email)) map.set(g.email, g);
+    return [...map.values()];
+  }, [members, defaultGuests]);
+
+  const defaultEmails = useMemo(
+    () => new Set((defaultGuests ?? []).map((g) => g.email)),
+    [defaultGuests],
+  );
+
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(defaultEmails));
 
   useEffect(() => {
     if (!open) return;
@@ -30,7 +47,7 @@ export function AddToCalendarButton({
   }, [open]);
 
   function guests(): CalendarGuest[] {
-    return (members ?? []).filter((m) => selected.has(m.email));
+    return allGuests.filter((m) => selected.has(m.email));
   }
 
   function toggleGuest(email: string) {
@@ -79,12 +96,12 @@ export function AddToCalendarButton({
             <div className="sheet-handle" aria-hidden />
             <h3 className="text-2xl font-bold">הוספה ליומן</h3>
 
-            {members && members.length > 0 && (
+            {allGuests.length > 0 && (
               <div className="subcard flex flex-col gap-2">
                 <div className="text-sm font-semibold text-[var(--muted-strong)]">
-                  הזמנת בני משפחה
+                  הזמנת מוזמנים
                 </div>
-                {members.map((m) => (
+                {allGuests.map((m) => (
                   <label key={m.email} className="flex items-center gap-2 text-base">
                     <input
                       type="checkbox"
