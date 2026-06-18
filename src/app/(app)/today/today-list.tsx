@@ -144,9 +144,8 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf, readOnly }: { occ: Oc
 
   return (
     <li
-      className={`card-elevated transition ${
-        isSkipped ? "opacity-70" : ""
-      }`}
+      className={`card-elevated transition ${isSkipped ? "opacity-70" : ""
+        }`}
     >
       <div className="flex items-start gap-3">
         <div
@@ -276,7 +275,7 @@ function MeasurementDialog({
       <div className="sheet flex flex-col gap-4">
         <div className="sheet-handle" aria-hidden />
         <h3 className="text-2xl font-bold">{schedule.title}</h3>
-        <p className="text-[var(--muted)]">הזן את הערך{count > 1 ? "ים" : ""}.</p>
+        <p className="text-[var(--muted)]">הזן את הערכים.</p>
         <div className="flex gap-3">
           {vals.map((v, i) => (
             <div key={i} className="flex-1">
