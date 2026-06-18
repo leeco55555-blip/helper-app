@@ -535,7 +535,7 @@ function ScheduleDialog({
             <div>
               <label className="label">מספר ערכים למדידה</label>
               <div className="flex gap-2">
-                {[1, 2].map((n) => (
+                {[1, 2, 3].map((n) => (
                   <button
                     key={n}
                     type="button"
@@ -543,7 +543,7 @@ function ScheduleDialog({
                     className="chip flex-1"
                     data-active={valueCount === n}
                   >
-                    {n === 1 ? "ערך יחיד" : "שני ערכים"}
+                    {n === 1 ? "ערך יחיד" : n === 2 ? "שני ערכים" : "לחץ דם + דופק"}
                   </button>
                 ))}
               </div>

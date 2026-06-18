@@ -280,7 +280,13 @@ function MeasurementDialog({
           {vals.map((v, i) => (
             <div key={i} className="flex-1">
               <label className="label">
-                {count === 2 ? (i === 0 ? "סיסטולי" : "דיאסטולי") : "ערך"}
+                {count === 3
+                  ? ["סיסטולי", "דיאסטולי", "דופק"][i]
+                  : count === 2
+                    ? i === 0
+                      ? "סיסטולי"
+                      : "דיאסטולי"
+                    : "ערך"}
               </label>
               <input
                 type="number"
