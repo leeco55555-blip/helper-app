@@ -6,6 +6,7 @@ import { currentUserId } from "@/lib/auth/current-user";
 import { AppHeader } from "@/components/app-header";
 import { TodayList } from "../today/today-list";
 import { dayWindow, tomorrowYmd } from "@/lib/schedules/time-window";
+import { ensureOccurrencesInWindow } from "@/lib/schedules/expand";
 import { OccurrencesSkeleton } from "@/components/occurrences-skeleton";
 
 export default async function TomorrowPage({
@@ -71,6 +72,10 @@ async function TomorrowBody({ patientParam }: { patientParam?: string }) {
   const selected = patients.find((p) => p.id === selectedId)!;
 
   const { fromUtc, toUtc } = dayWindow(tomorrowYmd());
+
+  // Self-heal: materialize tomorrow's recurring occurrences if the reminder cron
+  // hasn't rolled the window forward yet. Idempotent (upsert ignores duplicates).
+  await ensureOccurrencesInWindow(selectedId, fromUtc, toUtc);
 
   const { data: occurrences } = await supabase
     .from("schedule_occurrences")

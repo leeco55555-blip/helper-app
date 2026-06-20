@@ -6,6 +6,7 @@ import { currentUserId } from "@/lib/auth/current-user";
 import { AppHeader } from "@/components/app-header";
 import { TodayList } from "./today-list";
 import { dayWindow, todayYmd } from "@/lib/schedules/time-window";
+import { ensureOccurrencesInWindow } from "@/lib/schedules/expand";
 import { OccurrencesSkeleton } from "@/components/occurrences-skeleton";
 
 export default async function TodayPage({
@@ -71,6 +72,10 @@ async function TodayBody({ patientParam }: { patientParam?: string }) {
   const selected = patients.find((p) => p.id === selectedId)!;
 
   const { fromUtc, toUtc } = dayWindow(todayYmd());
+
+  // Self-heal: make sure this day's recurring occurrences exist even if the
+  // reminder cron (which normally rolls the window forward) is behind. Idempotent.
+  await ensureOccurrencesInWindow(selectedId, fromUtc, toUtc);
 
   const { data: occurrences } = await supabase
     .from("schedule_occurrences")
