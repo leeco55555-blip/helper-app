@@ -34,13 +34,18 @@ async function run() {
   const windowStart = subMinutes(now, 2).toISOString();
   const windowEnd = addMinutes(now, 2).toISOString();
 
+  // Atomically CLAIM due occurrences by stamping reminder_sent_at in the same
+  // statement that selects them. Postgres row locks serialize concurrent runners,
+  // so each row is returned to exactly one caller — even if two cron drivers fire
+  // at once (e.g. this trigger plus a revived n8n), each reminder is sent once.
   const { data: due } = await svc
     .from("schedule_occurrences")
-    .select("id, patient_id, due_at, schedule:schedules(title, dose_text), patient:patients(profile_id, display_name)")
+    .update({ reminder_sent_at: new Date().toISOString() })
     .eq("status", "pending")
     .is("reminder_sent_at", null)
     .gte("due_at", windowStart)
-    .lte("due_at", windowEnd);
+    .lte("due_at", windowEnd)
+    .select("id, patient_id, due_at, schedule:schedules(title, dose_text), patient:patients(profile_id, display_name)");
 
   let totalSent = 0;
   for (const occ of due ?? []) {
@@ -70,11 +75,6 @@ async function run() {
         url: `/today?patient=${occ.patient_id}`,
       });
     }
-
-    await svc
-      .from("schedule_occurrences")
-      .update({ reminder_sent_at: new Date().toISOString() })
-      .eq("id", occ.id);
 
     await svc.from("notification_log").insert({
       profile_id: pat.profile_id,
