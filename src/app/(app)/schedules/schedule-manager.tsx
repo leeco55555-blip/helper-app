@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { KIND_LABEL, KIND_EMOJI, ALL_KINDS, type Kind } from "@/lib/schedules/kind-labels";
+import { TIME_MEASUREMENT_UNIT, isTimeMeasurement } from "@/lib/schedules/measurement";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { AddToCalendarButton } from "@/components/add-to-calendar-button";
 import type { CalendarGuest } from "@/lib/calendar/ics";
@@ -316,8 +317,13 @@ function ScheduleDialog({
   const [kind, setKind] = useState<string>(schedule?.kind ?? "medication");
   const [title, setTitle] = useState(schedule?.title ?? "");
   const [dose, setDose] = useState(schedule?.dose_text ?? "");
-  const [unit, setUnit] = useState(schedule?.measurement_unit ?? "");
+  const [unit, setUnit] = useState(
+    isTimeMeasurement(schedule?.measurement_unit) ? "" : schedule?.measurement_unit ?? "",
+  );
   const [valueCount, setValueCount] = useState(schedule?.measurement_value_count ?? 0);
+  // Time-of-day measurements (e.g. the CPAP "until what time" check) collect a
+  // single "HH:MM" value via a time picker instead of numeric fields.
+  const [isTimeValue, setIsTimeValue] = useState(isTimeMeasurement(schedule?.measurement_unit));
   const [location, setLocation] = useState(schedule?.location ?? "");
   const [freq, setFreq] = useState<"once" | "daily" | "weekly" | "custom" | "interval">(
     schedule?.pattern.freq ?? (schedule?.kind === "event" ? "once" : "daily"),
@@ -421,8 +427,8 @@ function ScheduleDialog({
       kind,
       title,
       dose_text: dose || null,
-      measurement_unit: isMeasurement ? unit || null : null,
-      measurement_value_count: isMeasurement ? valueCount : 0,
+      measurement_unit: isMeasurement ? (isTimeValue ? TIME_MEASUREMENT_UNIT : unit || null) : null,
+      measurement_value_count: isMeasurement ? (isTimeValue ? 1 : valueCount) : 0,
       location: isEvent ? location || null : null,
       pattern,
     };
@@ -523,31 +529,60 @@ function ScheduleDialog({
         {isMeasurement && (
           <div className="subcard">
             <div>
-              <label className="label">יחידת מידה</label>
-              <input
-                className="input"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                placeholder="mmHg / mg/dL / °C"
-                dir="ltr"
-              />
-            </div>
-            <div>
-              <label className="label">מספר ערכים למדידה</label>
+              <label className="label">סוג ערך</label>
               <div className="flex gap-2">
-                {[1, 2, 3].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setValueCount(n)}
-                    className="chip flex-1"
-                    data-active={valueCount === n}
-                  >
-                    {n === 1 ? "ערך יחיד" : n === 2 ? "שני ערכים" : "לחץ דם + דופק"}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => setIsTimeValue(false)}
+                  className="chip flex-1"
+                  data-active={!isTimeValue}
+                >
+                  מספרי
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsTimeValue(true)}
+                  className="chip flex-1"
+                  data-active={isTimeValue}
+                >
+                  🕐 שעה
+                </button>
               </div>
             </div>
+            {isTimeValue ? (
+              <p className="text-sm text-[var(--muted)]">
+                בעת הסימון כבוצע, ימולא ערך של שעה (למשל &quot;עד איזו שעה&quot;), ויישמר בהיסטוריה.
+              </p>
+            ) : (
+              <>
+                <div>
+                  <label className="label">יחידת מידה</label>
+                  <input
+                    className="input"
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    placeholder="mmHg / mg/dL / °C"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="label">מספר ערכים למדידה</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setValueCount(n)}
+                        className="chip flex-1"
+                        data-active={valueCount === n}
+                      >
+                        {n === 1 ? "ערך יחיד" : n === 2 ? "שני ערכים" : "לחץ דם + דופק"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

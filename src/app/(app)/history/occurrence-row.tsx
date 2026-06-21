@@ -1,11 +1,12 @@
 import { KIND_LABEL, KIND_EMOJI } from "@/lib/schedules/kind-labels";
+import { formatMeasurementValues, type MeasurementValue } from "@/lib/schedules/measurement";
 
 export type HistoryOccurrence = {
   id: string;
   due_at: string;
   status: "pending" | "taken" | "skipped" | "missed";
   taken_at: string | null;
-  measurement_values: number[] | null;
+  measurement_values: MeasurementValue[] | null;
   notes: string | null;
   schedule: {
     id: string;
@@ -68,14 +69,18 @@ export function OccurrenceRow({ occ }: { occ: HistoryOccurrence }) {
               {dueLabel}
             </span>
           </div>
-          {(occ.schedule?.dose_text ||
-            (occ.measurement_values && occ.schedule?.measurement_unit)) && (
-            <div className="text-xs text-[var(--muted)] truncate">
-              {occ.measurement_values && occ.schedule?.measurement_unit
-                ? `${occ.measurement_values.join(" / ")} ${occ.schedule.measurement_unit}`
-                : occ.schedule?.dose_text}
-            </div>
-          )}
+          {(() => {
+            const measureText = formatMeasurementValues(
+              occ.measurement_values,
+              occ.schedule?.measurement_unit,
+            );
+            if (!measureText && !occ.schedule?.dose_text) return null;
+            return (
+              <div className="text-xs text-[var(--muted)] truncate">
+                {measureText ?? occ.schedule?.dose_text}
+              </div>
+            );
+          })()}
         </div>
       </li>
     );

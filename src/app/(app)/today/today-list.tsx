@@ -4,13 +4,18 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { KIND_LABEL, KIND_EMOJI } from "@/lib/schedules/kind-labels";
+import {
+  formatMeasurementValues,
+  isTimeMeasurement,
+  type MeasurementValue,
+} from "@/lib/schedules/measurement";
 
 type Occurrence = {
   id: string;
   due_at: string;
   status: "pending" | "taken" | "skipped" | "missed";
   taken_at: string | null;
-  measurement_values: number[] | null;
+  measurement_values: MeasurementValue[] | null;
   notes: string | null;
   schedule: {
     id: string;
@@ -69,7 +74,7 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf, readOnly }: { occ: Oc
   const isSkipped = occ.status === "skipped";
   const k = occ.schedule?.kind ?? "medication";
 
-  async function mark(status: "taken" | "skipped" | "pending", values?: number[]) {
+  async function mark(status: "taken" | "skipped" | "pending", values?: MeasurementValue[]) {
     startTransition(async () => {
       const res = await fetch(`/api/occurrences/${occ.id}/mark`, {
         method: "POST",
@@ -119,13 +124,18 @@ function OccurrenceCard({ occ, canEdit, patientId, isSelf, readOnly }: { occ: Oc
               {time}
             </span>
           </div>
-          {(occ.schedule?.dose_text || (occ.measurement_values && occ.schedule?.measurement_unit)) && (
-            <div className="text-xs text-[var(--muted)] truncate">
-              {occ.measurement_values && occ.schedule?.measurement_unit
-                ? `${occ.measurement_values.join(" / ")} ${occ.schedule.measurement_unit}`
-                : occ.schedule?.dose_text}
-            </div>
-          )}
+          {(() => {
+            const measureText = formatMeasurementValues(
+              occ.measurement_values,
+              occ.schedule?.measurement_unit,
+            );
+            if (!measureText && !occ.schedule?.dose_text) return null;
+            return (
+              <div className="text-xs text-[var(--muted)] truncate">
+                {measureText ?? occ.schedule?.dose_text}
+              </div>
+            );
+          })()}
         </div>
         {canEdit && (
           <button
@@ -265,9 +275,10 @@ function MeasurementDialog({
 }: {
   schedule: NonNullable<Occurrence["schedule"]>;
   onClose: () => void;
-  onSubmit: (values: number[]) => void;
+  onSubmit: (values: MeasurementValue[]) => void;
 }) {
-  const count = schedule.measurement_value_count;
+  const isTime = isTimeMeasurement(schedule.measurement_unit);
+  const count = isTime ? 1 : schedule.measurement_value_count;
   const [vals, setVals] = useState<string[]>(Array.from({ length: count }, () => ""));
 
   return (
@@ -275,22 +286,24 @@ function MeasurementDialog({
       <div className="sheet flex flex-col gap-4">
         <div className="sheet-handle" aria-hidden />
         <h3 className="text-2xl font-bold">{schedule.title}</h3>
-        <p className="text-[var(--muted)]">הזן את הערכים.</p>
+        <p className="text-[var(--muted)]">{isTime ? "בחר שעה." : "הזן את הערכים."}</p>
         <div className="flex gap-3">
           {vals.map((v, i) => (
             <div key={i} className="flex-1">
               <label className="label">
-                {count === 3
-                  ? ["סיסטולי", "דיאסטולי", "דופק"][i]
-                  : count === 2
-                    ? i === 0
-                      ? "סיסטולי"
-                      : "דיאסטולי"
-                    : "ערך"}
+                {isTime
+                  ? "שעה"
+                  : count === 3
+                    ? ["סיסטולי", "דיאסטולי", "דופק"][i]
+                    : count === 2
+                      ? i === 0
+                        ? "סיסטולי"
+                        : "דיאסטולי"
+                      : "ערך"}
               </label>
               <input
-                type="number"
-                inputMode="decimal"
+                type={isTime ? "time" : "number"}
+                inputMode={isTime ? undefined : "decimal"}
                 className="input"
                 dir="ltr"
                 value={v}
@@ -303,7 +316,7 @@ function MeasurementDialog({
             </div>
           ))}
         </div>
-        {schedule.measurement_unit && (
+        {!isTime && schedule.measurement_unit && (
           <p className="text-[var(--muted)]">יחידות: {schedule.measurement_unit}</p>
         )}
         <div className="flex gap-2 mt-2">
@@ -311,7 +324,7 @@ function MeasurementDialog({
             type="button"
             className="btn-primary flex-1"
             disabled={vals.some((v) => v === "")}
-            onClick={() => onSubmit(vals.map((v) => Number(v)))}
+            onClick={() => onSubmit(isTime ? vals : vals.map((v) => Number(v)))}
           >
             שמירה
           </button>

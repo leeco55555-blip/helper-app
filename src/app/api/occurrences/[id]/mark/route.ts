@@ -5,7 +5,8 @@ import { expandSchedule } from "@/lib/schedules/expand";
 
 const Body = z.object({
   status: z.enum(["pending", "taken", "skipped"]),
-  values: z.array(z.number()).optional(),
+  // Numbers for standard measurements; "HH:MM" strings for time-of-day checks.
+  values: z.array(z.union([z.number(), z.string()])).optional(),
 });
 
 export async function POST(

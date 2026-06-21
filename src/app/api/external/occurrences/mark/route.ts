@@ -6,7 +6,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 const Body = z.object({
   occurrence_id: z.string().uuid(),
   status: z.enum(["pending", "taken", "skipped"]),
-  values: z.array(z.number()).optional(),
+  // Numbers for standard measurements; "HH:MM" strings for time-of-day checks.
+  values: z.array(z.union([z.number(), z.string()])).optional(),
   notes: z.string().optional(),
 });
 
